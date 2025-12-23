@@ -17,21 +17,22 @@
 local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
 
 -- Load Modules từ GitHub
+local cacheBuster = "?v=" .. tostring(os.time())
 local baseURL = "https://raw.githubusercontent.com/LuongMarus/GAGAutoPET/main/modules/"
 
 -- Setup dependencies trước (placeholder)
 getgenv().__AutoFarmDeps = {}
 
 -- Load Config và Webhook trước (không phụ thuộc gì)
-local Config = loadstring(game:HttpGet(baseURL .. "config.lua"))()
-local Webhook = loadstring(game:HttpGet(baseURL .. "webhook.lua"))()
+local Config = loadstring(game:HttpGet(baseURL .. "config.lua" .. cacheBuster))()
+local Webhook = loadstring(game:HttpGet(baseURL .. "webhook.lua" .. cacheBuster))()
 
 -- Cập nhật dependencies
 getgenv().__AutoFarmDeps.Config = Config
 getgenv().__AutoFarmDeps.Webhook = Webhook
 
 -- Giờ mới load Core (cần Config + Webhook)
-local coreCode = game:HttpGet(baseURL .. "core.lua")
+local coreCode = game:HttpGet(baseURL .. "core.lua" .. cacheBuster)
 if not coreCode then
     error("Failed to download core.lua from GitHub")
 end
@@ -48,7 +49,7 @@ end
 getgenv().__AutoFarmDeps.Core = Core
 
 -- Load UI cuối cùng (cần Config + Webhook + Core)
-local uiCode = game:HttpGet(baseURL .. "ui.lua")
+local uiCode = game:HttpGet(baseURL .. "ui.lua" .. cacheBuster)
 if not uiCode then
     error("Failed to download ui.lua from GitHub")
 end
