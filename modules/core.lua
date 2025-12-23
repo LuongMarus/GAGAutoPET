@@ -311,20 +311,21 @@ function Core.ManageGarden(NotifyCallback)
             local petName = ""
             local isTarget = false
             
-            for _, lbl in pairs(frame:GetDescendants()) do
-                if lbl:IsA("TextLabel") and lbl.Visible and lbl.Text ~= "" then
-                    print("[DEBUG UI]", uuid, "- Label:", lbl.Text)
-                    
-                    -- Parse Age (format: "Age: 50" hoặc "Age 50")
-                    local a = string.match(lbl.Text, "Age:?%s*(%d+)")
-                    if a then 
-                        age = tonumber(a)
-                        print("[DEBUG] ✓ Detected Age:", age, "from text:", lbl.Text)
-                    end
-                    
-                    if not string.find(lbl.Text, "Age") and petName == "" then
-                        petName = lbl.Text
-                        print("[DEBUG] ✓ Detected Name:", petName)
+            -- Lấy Age từ path: {UUID}.Main.PET_AGE_SHADOW
+            local mainFrame = frame:FindFirstChild("Main")
+            if mainFrame then
+                local ageLabel = mainFrame:FindFirstChild("PET_AGE_SHADOW")
+                if ageLabel and ageLabel:IsA("TextLabel") then
+                    local a = string.match(ageLabel.Text, "(%d+)")
+                    if a then age = tonumber(a) end
+                end
+                
+                -- Lấy tên pet
+                for _, lbl in pairs(mainFrame:GetDescendants()) do
+                    if lbl:IsA("TextLabel") and lbl.Visible and lbl.Text ~= "" and petName == "" then
+                        if not string.find(lbl.Text, "Age") and not string.find(lbl.Text, ":") then
+                            petName = lbl.Text
+                        end
                     end
                 end
             end
@@ -340,10 +341,10 @@ function Core.ManageGarden(NotifyCallback)
                 currentTargetCount = currentTargetCount + 1
                 
                 if age >= settings.TargetAge then
-                    print("[FARM] Thu hoạch:", petName, "Age:", age, "UUID:", uuid)
+                    print("[FARM] Thu hoạch:", petName, "Age:", age)
                     
                     if NotifyCallback then
-                        NotifyCallback("Harvesting", "Unequipping " .. petName .. " (Age " .. age .. ")", 3)
+                        NotifyCallback("Harvesting", petName .. " (Age " .. age .. ")", 3)
                     end
                     
                     PetsService:FireServer("UnequipPet", uuid)
@@ -352,7 +353,6 @@ function Core.ManageGarden(NotifyCallback)
                     for i, id in ipairs(targetUUIDs) do
                         if id == uuid then
                             table.remove(targetUUIDs, i)
-                            print("[FARM] Đã xóa UUID khỏi danh sách")
                             break
                         end
                     end
@@ -372,14 +372,71 @@ function Core.PlantPets(totalOccupied, currentTargetCount)
     local settings = GetConfig().GetSettings()
     local maxSlots = settings.MaxSlots
     local farmLimit = settings.FarmLimit
+    local targetUUIDs = settings.TargetUUIDs
     
-    -- Kiểm tra giới hạn
+    -- BƯỚC 1: Check pet ĐÃ PLANT trong vườn trước
+    local PlayerGui = LocalPlayer:FindFirstChild("PlayerGui")
+    if PlayerGui then
+        local ActiveUI = PlayerGui:FindFirstChild("ActivePetUI")
+        if ActiveUI then
+            local List = ActiveUI:FindFirstChild("Frame") and ActiveUI.Frame:FindFirstChild("Main") 
+                and ActiveUI.Frame.Main:FindFirstChild("PetDisplay") 
+                and ActiveUI.Frame.Main.PetDisplay:FindFirstChild("ScrollingFrame")
+            if List then
+                for _, frame in pairs(List:GetChildren()) do
+                    if frame:IsA("Frame") and string.find(frame.Name, "{") then
+                        local uuid = frame.Name
+                        local age = 0
+                        local petName = ""
+                        
+                        -- Parse Age từ UI
+                        for _, lbl in pairs(frame:GetDescendants()) do
+                            if lbl:IsA("TextLabel") and lbl.Visible and lbl.Text ~= "" then
+                                local a = string.match(lbl.Text, "Age:?%s*(%d+)")
+                                if a then age = tonumber(a) end
+                                
+                                if not string.find(lbl.Text, "Age") and petName == "" then
+                                    petName = lbl.Text
+                                end
+                            end
+                        end
+                        
+                        -- Check nếu là target pet
+                        local isTarget = false
+                        for _, targetID in ipairs(targetUUIDs) do
+                            if uuid == targetID then
+                                isTarget = true
+                                break
+                            end
+                        end
+                        
+                        -- Nếu đạt Age, unequip ngay
+                        if isTarget and age >= settings.TargetAge then
+                            print("[FARM] Pet trong vườn đạt Age", age, "→ Unequip:", petName)
+                            PetsService:FireServer("UnequipPet", uuid)
+                            GetWebhook().SendPetMaxLevel(petName, age, settings.WebhookURL)
+                            
+                            for i, id in ipairs(targetUUIDs) do
+                                if id == uuid then
+                                    table.remove(targetUUIDs, i)
+                                    break
+                                end
+                            end
+                            
+                            currentTargetCount = currentTargetCount - 1
+                            task.wait(0.5)
+                        end
+                    end
+                end
+            end
+        end
+    end
+    
+    -- BƯỚC 2: Kiểm tra giới hạn
     if totalOccupied >= maxSlots then 
-        print("[FARM] Vườn đã đầy:", totalOccupied, "/", maxSlots)
         return 
     end
     if currentTargetCount >= farmLimit then 
-        print("[FARM] Đã đạt giới hạn farm:", currentTargetCount, "/", farmLimit)
         return 
     end
 
@@ -421,7 +478,7 @@ function Core.PlantPets(totalOccupied, currentTargetCount)
                 tool:Activate()
                 task.wait(1.5)
                 
-                -- Sau khi plant, check Age từ ActivePetUI
+                -- Sau khi plant, check Age từ path: {UUID}.Main.PET_AGE_SHADOW
                 local plantedAge = 0
                 local plantedName = ""
                 local plantedUUID = tool.Name
@@ -434,20 +491,23 @@ function Core.PlantPets(totalOccupied, currentTargetCount)
                             and ActiveUI.Frame.Main:FindFirstChild("PetDisplay") 
                             and ActiveUI.Frame.Main.PetDisplay:FindFirstChild("ScrollingFrame")
                         if List then
-                            for _, frame in pairs(List:GetChildren()) do
-                                if frame:IsA("Frame") and frame.Name == plantedUUID then
-                                    -- Tìm thấy pet vừa plant
-                                    for _, lbl in pairs(frame:GetDescendants()) do
-                                        if lbl:IsA("TextLabel") and lbl.Visible and lbl.Text ~= "" then
-                                            local a = string.match(lbl.Text, "Age:?%s*(%d+)")
-                                            if a then plantedAge = tonumber(a) end
-                                            
-                                            if not string.find(lbl.Text, "Age") and plantedName == "" then
+                            local frame = List:FindFirstChild(plantedUUID)
+                            if frame then
+                                local mainFrame = frame:FindFirstChild("Main")
+                                if mainFrame then
+                                    local ageLabel = mainFrame:FindFirstChild("PET_AGE_SHADOW")
+                                    if ageLabel and ageLabel:IsA("TextLabel") then
+                                        local a = string.match(ageLabel.Text, "(%d+)")
+                                        if a then plantedAge = tonumber(a) end
+                                    end
+                                    
+                                    for _, lbl in pairs(mainFrame:GetDescendants()) do
+                                        if lbl:IsA("TextLabel") and lbl.Visible and lbl.Text ~= "" and plantedName == "" then
+                                            if not string.find(lbl.Text, "Age") and not string.find(lbl.Text, ":") then
                                                 plantedName = lbl.Text
                                             end
                                         end
                                     end
-                                    break
                                 end
                             end
                         end
@@ -456,22 +516,19 @@ function Core.PlantPets(totalOccupied, currentTargetCount)
                 
                 -- Kiểm tra Age
                 if plantedAge >= settings.TargetAge then
-                    print("[FARM] Pet đã đạt Age", plantedAge, "→ Unequip ngay:", plantedName)
+                    print("[FARM] Pet đã đạt Age", plantedAge, "→ Unequip:", plantedName)
                     PetsService:FireServer("UnequipPet", plantedUUID)
                     GetWebhook().SendPetMaxLevel(plantedName, plantedAge, settings.WebhookURL)
                     
-                    -- Xóa UUID khỏi danh sách
                     for i, id in ipairs(targetUUIDs) do
                         if id == plantedUUID then
                             table.remove(targetUUIDs, i)
-                            print("[FARM] Đã xóa UUID đạt điều kiện")
                             break
                         end
                     end
                     
                     task.wait(0.5)
                 else
-                    print("[FARM] Pet Age", plantedAge, "→ Giữ lại farm tiếp")
                     planted = planted + 1
                 end
             end
