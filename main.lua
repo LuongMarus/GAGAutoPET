@@ -16,17 +16,20 @@
 -- Load Fluent UI Library
 local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
 
--- Load Modules
-local modulesFolder = script:FindFirstChild("modules") or script.Parent:FindFirstChild("modules")
+-- Load Modules từ GitHub
+local baseURL = "https://raw.githubusercontent.com/LuongMarus/GAGAutoPET/main/modules/"
 
-if not modulesFolder then
-    error("[ERROR] Modules folder not found!")
-    return
-end
+local Config = loadstring(game:HttpGet(baseURL .. "config.lua"))()
+local Webhook = loadstring(game:HttpGet(baseURL .. "webhook.lua"))()
+local Core = loadstring(game:HttpGet(baseURL .. "core.lua"))()
+local UI = loadstring(game:HttpGet(baseURL .. "ui.lua"))()
 
-local Config = require(modulesFolder.config)
-local Core = require(modulesFolder.core)
-local UI = require(modulesFolder.ui)
+-- Setup dependencies cho modules
+getgenv().__AutoFarmDeps = {
+    Config = Config, 
+    Webhook = Webhook,
+    Core = Core
+}
 
 -- Khởi tạo config
 Config.Initialize()
