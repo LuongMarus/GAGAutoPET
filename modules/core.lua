@@ -348,4 +348,36 @@ function Core.GetDashboardInfo()
         and ActiveUI.Frame.Main:FindFirstChild("PetDisplay") 
         and ActiveUI.Frame.Main.PetDisplay:FindFirstChild("ScrollingFrame")
         
-    if not
+    if not List then return "Không tìm thấy danh sách pet" end
+    
+    local info = ""
+    for _, frame in pairs(List:GetChildren()) do
+        if frame:IsA("Frame") and frame:FindFirstChild("Main") then
+            local mainFrame = frame.Main
+            local petName = ""
+            local age = 0
+            
+            local ageLabel = mainFrame:FindFirstChild("PET_AGE_SHADOW")
+            if ageLabel and ageLabel:IsA("TextLabel") then
+                local a = string.match(ageLabel.Text, "(%d+)")
+                if a then age = tonumber(a) end
+            end
+            
+            for _, lbl in pairs(mainFrame:GetDescendants()) do
+                if lbl:IsA("TextLabel") and lbl.Visible and lbl.Text ~= "" and petName == "" then
+                    if not string.find(lbl.Text, "Age") and not string.find(lbl.Text, ":") then
+                        petName = lbl.Text
+                    end
+                end
+            end
+            
+            if petName ~= "" then
+                info = info .. petName .. " (Age " .. age .. ")\n"
+            end
+        end
+    end
+    
+    return info ~= "" and info or "Vườn trống"
+end
+
+return Core
