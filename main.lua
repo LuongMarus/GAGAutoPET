@@ -17,7 +17,7 @@
 local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
 
 -- Load Modules từ GitHub
-local cacheBuster = "?v=" .. tostring(os.time())
+local cacheBuster = "?v=" .. tostring(os.time()) .. math.random(1000, 9999)
 local baseURL = "https://raw.githubusercontent.com/LuongMarus/GAGAutoPET/main/modules/"
 
 -- Setup dependencies trước (placeholder)
