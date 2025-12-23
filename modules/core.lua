@@ -120,7 +120,10 @@ function Core.ScanAndBuildTargetList(NotifyCallback)
                 and ActiveUI.Frame.Main.PetDisplay:FindFirstChild("ScrollingFrame")
             if List then
                 for _, frame in pairs(List:GetChildren()) do
-                    if frame:IsA("Frame") and string.find(frame.Name, "{") then
+                    if frame:IsA("Frame") then
+                        local mainFrame = frame:FindFirstChild("Main")
+                        if not mainFrame then continue end
+                        
                         local uuid = frame.Name
                         local petName = ""
                         
@@ -299,7 +302,7 @@ function Core.ManageGarden(NotifyCallback)
     
     if #targetUUIDs == 0 then
         for _, frame in pairs(List:GetChildren()) do
-             if frame:IsA("Frame") and string.find(frame.Name, "{") then
+             if frame:IsA("Frame") and frame:FindFirstChild("Main") then
                  totalOccupied = totalOccupied + 1
              end
         end
@@ -307,7 +310,10 @@ function Core.ManageGarden(NotifyCallback)
     end
 
     for _, frame in pairs(List:GetChildren()) do
-        if frame:IsA("Frame") and string.find(frame.Name, "{") then
+        if frame:IsA("Frame") then
+            local mainFrame = frame:FindFirstChild("Main")
+            if not mainFrame then continue end
+            
             totalOccupied = totalOccupied + 1
             
             local uuid = frame.Name
@@ -316,9 +322,7 @@ function Core.ManageGarden(NotifyCallback)
             local isTarget = false
             
             -- Lấy Age từ path: {UUID}.Main.PET_AGE_SHADOW
-            local mainFrame = frame:FindFirstChild("Main")
-            if mainFrame then
-                local ageLabel = mainFrame:FindFirstChild("PET_AGE_SHADOW")
+            local ageLabel = mainFrame:FindFirstChild("PET_AGE_SHADOW")
                 if ageLabel and ageLabel:IsA("TextLabel") then
                     local a = string.match(ageLabel.Text, "(%d+)")
                     if a then age = tonumber(a) end
@@ -388,7 +392,10 @@ function Core.PlantPets(totalOccupied, currentTargetCount)
                 and ActiveUI.Frame.Main.PetDisplay:FindFirstChild("ScrollingFrame")
             if List then
                 for _, frame in pairs(List:GetChildren()) do
-                    if frame:IsA("Frame") and string.find(frame.Name, "{") then
+                    if frame:IsA("Frame") then
+                        local mainFrame = frame:FindFirstChild("Main")
+                        if not mainFrame then continue end
+                        
                         local uuid = frame.Name
                         local age = 0
                         local petName = ""
@@ -504,19 +511,18 @@ function Core.PlantPets(totalOccupied, currentTargetCount)
                         if List then
                             local frame = List:FindFirstChild(plantedUUID)
                             if frame then
-                                local mainFrame = frame:FindFirstChild("Main")
-                                if mainFrame then
-                                    local ageLabel = mainFrame:FindFirstChild("PET_AGE_SHADOW")
-                                    if ageLabel and ageLabel:IsA("TextLabel") then
-                                        local a = string.match(ageLabel.Text, "(%d+)")
-                                        if a then plantedAge = tonumber(a) end
-                                    end
-                                    
-                                    for _, lbl in pairs(mainFrame:GetDescendants()) do
-                                        if lbl:IsA("TextLabel") and lbl.Visible and lbl.Text ~= "" and plantedName == "" then
-                                            if not string.find(lbl.Text, "Age") and not string.find(lbl.Text, ":") then
-                                                plantedName = lbl.Text
-                                            end
+                                -- Lấy Age
+                                local ageLabel = frame:FindFirstChild("PET_AGE_SHADOW", true)
+                                if ageLabel and ageLabel:IsA("TextLabel") then
+                                    local a = string.match(ageLabel.Text, "(%d+)")
+                                    if a then plantedAge = tonumber(a) end
+                                end
+                                
+                                -- Lấy tên
+                                for _, lbl in pairs(frame:GetDescendants()) do
+                                    if lbl:IsA("TextLabel") and lbl.Visible and lbl.Text ~= "" and plantedName == "" then
+                                        if not string.find(lbl.Text, "Age") and lbl.Text ~= "Shadow" then
+                                            plantedName = lbl.Text
                                         end
                                     end
                                 end
