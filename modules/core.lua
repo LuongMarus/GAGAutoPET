@@ -10,9 +10,14 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local LocalPlayer = Players.LocalPlayer
 local PetsService = ReplicatedStorage:WaitForChild("GameEvents"):WaitForChild("PetsService")
 
--- Dependencies
-local Config = getgenv().__AutoFarmDeps.Config
-local Webhook = getgenv().__AutoFarmDeps.Webhook
+-- Lazy load dependencies
+local function GetConfig()
+    return getgenv().__AutoFarmDeps.Config
+end
+
+local function GetWebhook()
+    return getgenv().__AutoFarmDeps.Webhook
+end
 
 -- Kiểm tra mutation
 function Core.IsMutation(petName)
@@ -42,7 +47,7 @@ end
 
 -- Scan và build danh sách pet
 function Core.ScanAndBuildTargetList()
-    local settings = Config.GetSettings()
+    local settings = GetConfig().GetSettings()
     local targetName = settings.SelectedSpecies
     
     if targetName == "" or targetName == nil then 
@@ -168,7 +173,7 @@ end
 
 -- Scan và cập nhật storage liên tục (tự động thêm pet mới)
 function Core.ScanAndUpdateStorage(NotifyCallback)
-    local settings = Config.GetSettings()
+    local settings = GetConfig().GetSettings()
     local targetName = settings.SelectedSpecies
     
     if targetName == "" or targetName == nil then return end
@@ -252,7 +257,7 @@ function Core.ScanAndUpdateStorage(NotifyCallback)
                             end
                         end
                         
-                        Webhook.SendMutationAchieved(baseName, mutType, settings.WebhookURL)
+                        GetWebhook().SendMutationAchieved(baseName, mutType, settings.WebhookURL)
                         petStorage[tool.Name] = nil
                         
                         if NotifyCallback then
@@ -267,7 +272,7 @@ end
 
 -- Quản lý vườn (harvest pets)
 function Core.ManageGarden(NotifyCallback)
-    local settings = Config.GetSettings()
+    local settings = GetConfig().GetSettings()
     local PlayerGui = LocalPlayer:FindFirstChild("PlayerGui")
     if not PlayerGui then return 0, 0 end
     
@@ -330,7 +335,7 @@ function Core.ManageGarden(NotifyCallback)
                     end
                     
                     PetsService:FireServer("UnequipPet", uuid)
-                    Webhook.SendPetMaxLevel(petName, age, settings.WebhookURL)
+                    GetWebhook().SendPetMaxLevel(petName, age, settings.WebhookURL)
                     
                     for i, id in ipairs(targetUUIDs) do
                         if id == uuid then
@@ -352,7 +357,7 @@ end
 
 -- Trồng pets
 function Core.PlantPets(totalOccupied, currentTargetCount)
-    local settings = Config.GetSettings()
+    local settings = GetConfig().GetSettings()
     if totalOccupied >= settings.MaxSlots then return end
     if currentTargetCount >= settings.FarmLimit then return end
 

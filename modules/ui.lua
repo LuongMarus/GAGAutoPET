@@ -8,10 +8,18 @@ local UI = {}
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 
--- Dependencies
-local Config = getgenv().__AutoFarmDeps.Config
-local Core = getgenv().__AutoFarmDeps.Core
-local Webhook = getgenv().__AutoFarmDeps.Webhook
+-- Lazy load dependencies
+local function GetConfig()
+    return getgenv().__AutoFarmDeps.Config
+end
+
+local function GetCore()
+    return getgenv().__AutoFarmDeps.Core
+end
+
+local function GetWebhook()
+    return getgenv().__AutoFarmDeps.Webhook
+end
 
 -- UI References
 local Window
@@ -91,7 +99,7 @@ end
 local function UpdateMiscPetList()
     if not MiscUI.PetListLabel then return end
     
-    local settings = Config.GetSettings()
+    local settings = GetConfig().GetSettings()
     local targetUUIDs = settings.TargetUUIDs
     local targetAge = settings.TargetAge
     
@@ -133,7 +141,7 @@ local function UpdateMiscPetList()
                     local weightMatch = string.match(tool.Name, "(%d+%.%d+) KG")
                     petInfo.weight = weightMatch or "N/A"
                     
-                    local isMut, mutType = Core.IsMutation(baseName)
+                    local isMut, mutType = GetCore().IsMutation(baseName)
                     petInfo.mutation = mutType
                     
                     petInfo.status = petInfo.age >= targetAge and "[OK] ĐẠT" or "[X] CHƯA ĐẠT"
@@ -157,7 +165,7 @@ local function UpdateMiscPetList()
                     local weightMatch = string.match(tool.Name, "(%d+%.%d+) KG")
                     petInfo.weight = weightMatch or "N/A"
                     
-                    local isMut, mutType = Core.IsMutation(baseName)
+                    local isMut, mutType = GetCore().IsMutation(baseName)
                     petInfo.mutation = mutType
                     
                     petInfo.status = petInfo.age >= targetAge and "[OK] ĐẠT" or "[X] CHƯA ĐẠT"
@@ -176,7 +184,7 @@ local function UpdateMiscPetList()
             local weightMatch = string.match(uuid, "(%d+%.%d+) KG")
             petInfo.weight = weightMatch or "N/A"
             
-            local isMut, mutType = Core.IsMutation(baseName)
+            local isMut, mutType = GetCore().IsMutation(baseName)
             petInfo.mutation = mutType
             
             petInfo.status = petInfo.age >= targetAge and "[OK] ĐẠT" or "[~] ĐÃ PLANT"
@@ -272,10 +280,10 @@ function UI.BuildFarmTab(Fluent)
         Numeric = false,
         Finished = true,
         Callback = function(Value)
-            Config.UpdateSetting("SelectedSpecies", Value)
+            GetConfig().UpdateSetting("SelectedSpecies", Value)
             
             if Value ~= "" then
-                Core.ScanAndBuildTargetList()
+                GetCore().ScanAndBuildTargetList()
                 Fluent:Notify({
                     Title = "Auto Storage",
                     Content = "Pet sẽ được tự động lưu và scan liên tục!",
@@ -290,7 +298,7 @@ function UI.BuildFarmTab(Fluent)
         Description = "Bật để bỏ qua pet Mega, Rainbow, Ascended, Nightmare...",
         Default = true,
         Callback = function(Value)
-            Config.UpdateSetting("ExcludeMutation", Value)
+            GetConfig().UpdateSetting("ExcludeMutation", Value)
             if Value then
                 Fluent:Notify({
                     Title = "Exclude Mutation",
@@ -305,9 +313,9 @@ function UI.BuildFarmTab(Fluent)
                 })
             end
             
-            local settings = Config.GetSettings()
+            local settings = GetConfig().GetSettings()
             if settings.SelectedSpecies ~= "" then
-                Core.ScanAndBuildTargetList()
+                GetCore().ScanAndBuildTargetList()
             end
         end
     })
@@ -316,7 +324,7 @@ function UI.BuildFarmTab(Fluent)
         Title = "Quét Lại Danh Sách (Re-scan)",
         Description = "Bấm để cập nhật danh sách pet sau khi mua/nở trứng",
         Callback = function()
-            local settings = Config.GetSettings()
+            local settings = GetConfig().GetSettings()
             if settings.SelectedSpecies == "" then
                 Fluent:Notify({
                     Title = "Error",
@@ -324,7 +332,7 @@ function UI.BuildFarmTab(Fluent)
                     Duration = 3
                 })
             else
-                Core.ScanAndBuildTargetList()
+                GetCore().ScanAndBuildTargetList()
             end
         end
     })
@@ -338,7 +346,7 @@ function UI.BuildFarmTab(Fluent)
         Callback = function(Value)
             local age = tonumber(Value) or 50
             if age > 100 then age = 100 end
-            Config.UpdateSetting("TargetAge", age)
+            GetConfig().UpdateSetting("TargetAge", age)
         end
     })
 
@@ -349,7 +357,7 @@ function UI.BuildFarmTab(Fluent)
         Finished = true,
         Callback = function(Value)
             local slots = tonumber(Value) or 6
-            Config.UpdateSetting("MaxSlots", slots)
+            GetConfig().UpdateSetting("MaxSlots", slots)
         end
     })
 
@@ -360,7 +368,7 @@ function UI.BuildFarmTab(Fluent)
         Finished = true,
         Callback = function(Value)
             local limit = tonumber(Value) or 6
-            Config.UpdateSetting("FarmLimit", limit)
+            GetConfig().UpdateSetting("FarmLimit", limit)
         end
     })
 
@@ -368,8 +376,8 @@ function UI.BuildFarmTab(Fluent)
         Title = "Bật Auto Farm",
         Default = false,
         Callback = function(Value)
-            Config.UpdateSetting("IsRunning", Value)
-            local settings = Config.GetSettings()
+            GetConfig().UpdateSetting("IsRunning", Value)
+            local settings = GetConfig().GetSettings()
             if Value and (settings.SelectedSpecies == "" or settings.SelectedSpecies == nil) then
                 Fluent:Notify({
                     Title = "Warning",
@@ -414,15 +422,15 @@ function UI.BuildSettingsTab(Fluent)
         Title = "Webhook URL",
         Default = "",
         Callback = function(Value) 
-            Config.UpdateSetting("WebhookURL", Value)
+            GetConfig().UpdateSetting("WebhookURL", Value)
         end
     })
 
     Tabs.Settings:AddButton({
         Title = "Test Webhook",
         Callback = function()
-            local settings = Config.GetSettings()
-            Webhook.SendPetMaxLevel("TEST PET", 999, settings.WebhookURL)
+            local settings = GetConfig().GetSettings()
+            GetWebhook().SendPetMaxLevel("TEST PET", 999, settings.WebhookURL)
             Fluent:Notify({Title = "Webhook", Content = "Đã gửi tin nhắn test!", Duration = 3})
         end
     })
