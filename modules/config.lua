@@ -11,6 +11,7 @@ function Config.Initialize()
         WebhookURL = "",
         ExcludeMutation = true,
         TargetUUIDs = {},
+        PetStorage = {},
         ActiveSlots = 0
     }
 end
