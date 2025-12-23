@@ -333,7 +333,6 @@ function Core.ManageGarden(NotifyCallback)
                 if lbl:IsA("TextLabel") and lbl.Visible and lbl.Text ~= "" and petName == "" then
                     if not string.find(lbl.Text, "Age") and not string.find(lbl.Text, ":") then
                         petName = lbl.Text
-                    end
                 end
             end
             
