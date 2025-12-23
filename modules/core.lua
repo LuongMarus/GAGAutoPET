@@ -124,11 +124,15 @@ function Core.ScanAndBuildTargetList(NotifyCallback)
                         local uuid = frame.Name
                         local petName = ""
                         
-                        for _, lbl in pairs(frame:GetDescendants()) do
-                            if lbl:IsA("TextLabel") and lbl.Visible then
-                                if not string.find(lbl.Text, "Age") and lbl.Text ~= "" and petName == "" then
-                                    petName = lbl.Text
-                                    break
+                        -- Lấy tên pet từ path: {UUID}.Main
+                        local mainFrame = frame:FindFirstChild("Main")
+                        if mainFrame then
+                            for _, lbl in pairs(mainFrame:GetDescendants()) do
+                                if lbl:IsA("TextLabel") and lbl.Visible and lbl.Text ~= "" and petName == "" then
+                                    if not string.find(lbl.Text, "Age") and not string.find(lbl.Text, ":") then
+                                        petName = lbl.Text
+                                        break
+                                    end
                                 end
                             end
                         end
@@ -147,7 +151,7 @@ function Core.ScanAndBuildTargetList(NotifyCallback)
                             
                             if not alreadyAdded then
                                 if excludeMutation and Core.IsMutation(baseName) then
-                                    print("[SCAN] Bỏ qua mutation trong vườn:", uuid)
+                                    print("[SCAN] Bỏ qua mutation trong vườn:", baseName)
                                 else
                                     table.insert(uuidList, uuid)
                                     settings.PetStorage[uuid] = {
@@ -155,7 +159,7 @@ function Core.ScanAndBuildTargetList(NotifyCallback)
                                         uuid = uuid,
                                         lastSeen = os.time()
                                     }
-                                    print("[SCAN] Thêm pet từ vườn:", uuid)
+                                    print("[SCAN] Thêm pet từ vườn:", baseName)
                                 end
                             end
                         end
