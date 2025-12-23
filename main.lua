@@ -31,13 +31,26 @@ getgenv().__AutoFarmDeps.Config = Config
 getgenv().__AutoFarmDeps.Webhook = Webhook
 
 -- Giờ mới load Core (cần Config + Webhook)
-local Core = loadstring(game:HttpGet(baseURL .. "core.lua"))()
+local coreCode = game:HttpGet(baseURL .. "core.lua")
+local coreFunc, coreErr = loadstring(coreCode)
+if not coreFunc then
+    error("Failed to load core.lua: " .. tostring(coreErr))
+end
+local Core = coreFunc()
+if not Core then
+    error("core.lua returned nil")
+end
 
 -- Update deps với Core
 getgenv().__AutoFarmDeps.Core = Core
 
 -- Load UI cuối cùng (cần Config + Webhook + Core)
-local UI = loadstring(game:HttpGet(baseURL .. "ui.lua"))()
+local uiCode = game:HttpGet(baseURL .. "ui.lua")
+local uiFunc, uiErr = loadstring(uiCode)
+if not uiFunc then
+    error("Failed to load ui.lua: " .. tostring(uiErr))
+end
+local UI = uiFunc()
 
 -- Khởi tạo config
 Config.Initialize()
