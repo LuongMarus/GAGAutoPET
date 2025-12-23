@@ -1,278 +1,165 @@
--- MODULE: CORE
-
 local Core = {}
-
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local LocalPlayer = Players.LocalPlayer
+local PetsService = ReplicatedStorage:WaitForChild("GameEvents"):WaitForChild("PetsService")
 
-local PetsService = ReplicatedStorage
-    :WaitForChild("GameEvents")
-    :WaitForChild("PetsService")
-
-local Config = getgenv().__AutoFarmDeps.Config
-local Webhook = getgenv().__AutoFarmDeps.Webhook
-
-local function Settings()
-    return Config.GetSettings()
-end
-
-local function IsAlive()
-    return not Settings().IsDestroyed
-end
+local function GetDeps() return getgenv().__AutoFarmDeps end
 
 function Core.IsMutation(name)
-    local list = {"Mega","Rainbow","Ascended","Nightmare"}
+    local list = {"Mega", "Rainbow", "Ascended", "Nightmare", "Shiny", "Golden"}
     for _, k in ipairs(list) do
-        if string.find(name, k) then
-            return true, k
-        end
+        if string.find(name, k) then return true, k end
     end
     return false, "Normal"
 end
 
-function Core.ScanAndUpdateStorage()
-    if not IsAlive() then return end
-
-    local s = Settings()
-    s.PetStorage = {}
-    s.TargetUUIDs = {}
-    s.ActiveSlots = 0
-
-    -- Scan Garden
-    local list = LocalPlayer.PlayerGui
-        :WaitForChild("ActivePetUI")
-        .Frame.Main.PetDisplay.ScrollingFrame
-
-    for _, frame in ipairs(list:GetChildren()) do
-        if frame:IsA("Frame") and frame:FindFirstChild("Main") then
-            local age = tonumber(string.match(frame.Main.PET_AGE_SHADOW.Text or "", "(%d+)"))
-            local displayName = ""
-            for _, lbl in pairs(frame:GetDescendants()) do
-                if lbl:IsA("TextLabel") and lbl.Visible and lbl.Text and not string.find(lbl.Text, "Age") and lbl.Text ~= "" and displayName == "" then
-                    displayName = lbl.Text
-                    break
-                end
-            end
-            local mut, mutType = Core.IsMutation(displayName)
-
-            s.PetStorage[frame.Name] = {
-                UUID = frame.Name,
-                Name = displayName,
-                BaseName = string.lower(displayName),
-                Location = "Garden",
-                Age = age,
-                Mutation = mutType,
-                Status = "Waiting"
-            }
-        end
-    end
-
-    -- Scan Backpack
-    for _, tool in ipairs(LocalPlayer.Backpack:GetChildren()) do
-        if tool:IsA("Tool") and tool:FindFirstChild("UUID") then
-            local uuid = tool.UUID.Value
-            if not s.PetStorage[uuid] then
-                local baseName = string.match(tool.Name, "^(.+) %[Age") or tool.Name
-                local mut, mutType = Core.IsMutation(baseName)
-
-                s.PetStorage[uuid] = {
-                    UUID = uuid,
-                    Name = tool.Name,
-                    BaseName = string.lower(baseName),
-                    Location = "Backpack",
-                    Age = nil,
-                    Mutation = mutType,
-                    Status = "Waiting"
-                }
-            end
-        end
-    end
-
-    -- Apply rules
-    for uuid, pet in pairs(s.PetStorage) do
-        pet.Status = "Waiting"
-
-        if s.SelectedSpecies ~= "" and not string.find(pet.BaseName, s.SelectedSpecies) then
-            pet.Status = "Excluded"
-            continue
-        end
-
-        if s.ExcludeMutation and pet.Mutation ~= "Normal" then
-            pet.Status = "Excluded"
-            continue
-        end
-
-        if pet.Age and pet.Age >= s.TargetAge then
-            pet.Status = "Excluded"
-            continue
-        end
-
-        if #s.TargetUUIDs < s.FarmLimit then
-            table.insert(s.TargetUUIDs, uuid)
-            pet.Status = "Active"
-        end
-    end
-end
-
-function Core.ManageGarden()
-    if not IsAlive() then return end
-
-    local s = Settings()
-    for uuid, pet in pairs(s.PetStorage) do
-        if pet.Location == "Garden" then
-            local shouldHarvest = false
-            if pet.Age and pet.Age >= s.TargetAge then
-                shouldHarvest = true
-                Webhook.SendPetMaxLevel(pet.Name, pet.Age, s.WebhookURL)
-            elseif pet.Mutation ~= "Normal" then
-                shouldHarvest = true
-                Webhook.SendMutationAchieved(pet.Name, pet.Mutation, s.WebhookURL)
-            end
-            
-            if shouldHarvest then
-                PetsService:FireServer("UnequipPet", uuid)
-                pet.Status = "Excluded"
-            end
-        end
-    end
-end
-
-function Core.PlantPets()
-    if not IsAlive() then return end
-
-    local s = Settings()
-    local planted = 0
-
-    for _, uuid in ipairs(s.TargetUUIDs) do
-        if planted >= s.MaxSlots then break end
-
-        local pet = s.PetStorage[uuid]
-        if pet and pet.Location == "Backpack" then
-            local tool = LocalPlayer.Backpack:FindFirstChild(pet.Name)
-            if tool then
-                tool.Parent = LocalPlayer.Character
-                task.wait(0.1)
-                tool:Activate()
-                pet.Location = "Garden"
-                planted += 1
-            end
-        end
-    end
-
-    s.ActiveSlots = planted
-end
-
---------------------------------------------------
--- SCAN AND UPDATE STORAGE
---------------------------------------------------
 function Core.ScanAndUpdateStorage(Notify)
-    local s = Settings()
-    if s.SelectedSpecies == "" then return end
-    
+    local s = GetDeps().Config.GetSettings()
+    if s.SelectedSpecies == "" then return 0, 0 end
+
     local searchName = string.lower(s.SelectedSpecies)
-    local excludeMutation = s.ExcludeMutation
-    local targetUUIDs = s.TargetUUIDs
-    local petStorage = s.PetStorage
+    local backpack = LocalPlayer:FindFirstChild("Backpack")
+    local char = LocalPlayer.Character
     
-    -- Scan Backpack và Character
-    local sources = {}
-    local Backpack = LocalPlayer:FindFirstChild("Backpack")
-    local Character = LocalPlayer.Character
-    
-    if Backpack then
-        for _, tool in pairs(Backpack:GetChildren()) do
-            if tool:IsA("Tool") then
-                table.insert(sources, {tool = tool, location = "Backpack"})
+    -- 1. Reset trạng thái tạm thời nhưng giữ PetStorage
+    local currentTargetUUIDs = {}
+    local occupiedSlots = 0
+    local targetInGarden = 0
+
+    -- 2. Quét Garden (ActivePetUI)
+    local gui = LocalPlayer.PlayerGui:FindFirstChild("ActivePetUI")
+    if gui and gui:FindFirstChild("Frame") then
+        local list = gui.Frame.Main.PetDisplay.ScrollingFrame
+        for _, frame in ipairs(list:GetChildren()) do
+            if frame:IsA("Frame") and string.find(frame.Name, "{") then
+                occupiedSlots = occupiedSlots + 1
+                local uuid = frame.Name
+                local petName = ""
+                local age = 0
+                
+                for _, lbl in pairs(frame:GetDescendants()) do
+                    if lbl:IsA("TextLabel") and lbl.Visible then
+                        local a = string.match(lbl.Text, "Age:%s*(%d+)")
+                        if a then age = tonumber(a) 
+                        elseif lbl.Text ~= "" and not string.find(lbl.Text, "Age") then
+                            petName = lbl.Text
+                        end
+                    end
+                end
+
+                if string.find(string.lower(petName), searchName) then
+                    targetInGarden = targetInGarden + 1
+                    s.PetStorage[uuid] = {Name = petName, Age = age, Location = "Garden"}
+                end
             end
         end
     end
-    
-    if Character then
-        for _, tool in pairs(Character:GetChildren()) do
-            if tool:IsA("Tool") then
-                table.insert(sources, {tool = tool, location = "Character"})
-            end
-        end
-    end
-    
-    -- Cập nhật storage và TỰ ĐỘNG THÊM PET MỚI
-    for _, source in ipairs(sources) do
-        local tool = source.tool
+
+    -- 3. Quét Backpack & Character
+    local tools = {}
+    if backpack then for _, t in pairs(backpack:GetChildren()) do table.insert(tools, t) end end
+    if char then for _, t in pairs(char:GetChildren()) do if t:IsA("Tool") then table.insert(tools, t) end end end
+
+    for _, tool in ipairs(tools) do
         local baseName = string.match(tool.Name, "^(.+) %[Age") or tool.Name
-        local baseNameLower = string.lower(baseName)
-        
-        -- Chỉ xử lý pet có tên khớp
-        if string.find(baseNameLower, searchName, 1, true) then
-            -- Kiểm tra xem UUID có trong TargetUUIDs không
-            local isTarget = false
-            for _, uuid in ipairs(targetUUIDs) do
-                if tool.Name == uuid then
-                    isTarget = true
-                    break
-                end
+        if string.find(string.lower(baseName), searchName) then
+            local isMut, mutType = Core.IsMutation(baseName)
+            if not (s.ExcludeMutation and isMut) then
+                local uuid = tool.Name
+                s.PetStorage[uuid] = {Name = tool.Name, Age = 0, Location = "Backpack"}
+                table.insert(currentTargetUUIDs, uuid)
             end
+        end
+    end
+
+    s.TargetUUIDs = currentTargetUUIDs
+    return occupiedSlots, targetInGarden
+end
+
+function Core.ManageGarden(Notify)
+    local s = GetDeps().Config.GetSettings()
+    local gui = LocalPlayer.PlayerGui:FindFirstChild("ActivePetUI")
+    if not gui then return 0, 0 end
+
+    local list = gui.Frame.Main.PetDisplay.ScrollingFrame
+    local children = list:GetChildren()
+    local occupied = 0
+    local targetCount = 0
+    for _, frame in ipairs(children) do
+        if frame:IsA("Frame") and string.find(frame.Name, "{") then
+            occupied += 1
+            local uuid = frame.Name
+            if table.find(s.TargetUUIDs, uuid) then
+                targetCount += 1
+            end
+        end
+    end
+
+    for _, frame in ipairs(children) do
+        if frame:IsA("Frame") and string.find(frame.Name, "{") then
+            local uuid = frame.Name
+            local age = 0
+            local petName = ""
             
-            -- Nếu chưa có trong list, TỰ ĐỘNG THÊM VÀO
-            if not isTarget then
-                -- Kiểm tra mutation trước khi thêm
-                if excludeMutation and Core.IsMutation(baseName) then
-                    if Notify then Notify("Skip Mutation", baseName, 3) end
-                else
-                    -- Thêm pet mới vào danh sách
-                    table.insert(targetUUIDs, tool.Name)
-                    petStorage[tool.Name] = {
-                        baseName = baseName,
-                        uuid = tool.Name,
-                        location = source.location,
-                        lastSeen = os.time()
-                    }
-                    if Notify then Notify("New Pet", baseName, 3) end
-                end
-            else
-                -- Pet đã có trong list, chỉ cập nhật thông tin
-                if not petStorage[tool.Name] then
-                    petStorage[tool.Name] = {}
-                end
-                
-                petStorage[tool.Name].baseName = baseName
-                petStorage[tool.Name].uuid = tool.Name
-                petStorage[tool.Name].location = source.location
-                petStorage[tool.Name].lastSeen = os.time()
-                
-                -- Kiểm tra mutation bị loại trừ
-                if excludeMutation then
-                    local isMut, mutType = Core.IsMutation(baseName)
-                    if isMut then
-                        -- Xóa UUID khỏi danh sách farm
-                        for i, uuid in ipairs(targetUUIDs) do
-                            if uuid == tool.Name then
-                                table.remove(targetUUIDs, i)
-                                break
-                            end
-                        end
-                        
-                        -- Gửi webhook
-                        if Deps().Webhook then
-                            Deps().Webhook.SendMutationAchieved(baseName, mutType, s.WebhookURL)
-                        end
-                        
-                        -- Xóa khỏi storage
-                        petStorage[tool.Name] = nil
-                        
-                        if Notify then Notify("Mutation", baseName .. " (" .. mutType .. ")", 5) end
+            for _, lbl in pairs(frame:GetDescendants()) do
+                if lbl:IsA("TextLabel") and lbl.Visible and lbl.Text then
+                    local a = string.match(lbl.Text, "Age:%s*(%d+)")
+                    if a then age = tonumber(a) end
+                    
+                    if not string.find(lbl.Text, "Age") and lbl.Text ~= "" and petName == "" then
+                        petName = lbl.Text
+                        break
                     end
                 end
             end
+
+            -- Thu hoạch nếu đạt Age hoặc Mutation
+            local isMut, mutType = Core.IsMutation(petName)
+            if age >= s.TargetAge or (s.ExcludeMutation and isMut) then
+                PetsService:FireServer("UnequipPet", uuid)
+                if Notify then Notify("Harvest", petName, 2) end
+                if age >= s.TargetAge then
+                    GetDeps().Webhook.SendPetMaxLevel(petName, age, s.WebhookURL)
+                    if s.PetStorage[uuid] then
+                        s.PetStorage[uuid].Status = "Excluded"
+                        s.PetStorage[uuid].Location = "Backpack"
+                    end
+                elseif isMut then
+                    GetDeps().Webhook.SendMutationAchieved(petName, mutType, s.WebhookURL)
+                    s.PetStorage[uuid] = nil
+                end
+                occupied -= 1
+                if table.find(s.TargetUUIDs, uuid) then
+                    targetCount -= 1
+                end
+                task.wait(0.3)
+            end
         end
     end
+    return occupied, targetCount
 end
 
--- Rebuild TargetUUIDs from PetStorage
-s.TargetUUIDs = {}
-for uuid, pet in pairs(s.PetStorage) do
-    if pet.Status == "Waiting" then
-        table.insert(s.TargetUUIDs, uuid)
+function Core.PlantPets(occupied, targetInGarden)
+    local s = GetDeps().Config.GetSettings()
+    local char = LocalPlayer.Character
+    if not char or not char:FindFirstChild("Humanoid") then return end
+
+    local canPlant = math.min(s.MaxSlots - occupied, s.FarmLimit - targetInGarden)
+    if canPlant <= 0 then return end
+
+    local count = 0
+    for _, uuid in ipairs(s.TargetUUIDs) do
+        if count >= canPlant then break end
+        local tool = LocalPlayer.Backpack:FindFirstChild(uuid)
+        if tool then
+            char.Humanoid:EquipTool(tool)
+            task.wait(0.2)
+            tool:Activate()
+            if s.PetStorage[uuid] then s.PetStorage[uuid].Location = "Garden" end
+            count = count + 1
+            task.wait(0.5)
+        end
     end
 end
 
