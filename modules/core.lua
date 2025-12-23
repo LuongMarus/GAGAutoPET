@@ -389,14 +389,21 @@ function Core.PlantPets(totalOccupied, currentTargetCount)
                         local age = 0
                         local petName = ""
                         
-                        -- Parse Age từ UI
-                        for _, lbl in pairs(frame:GetDescendants()) do
-                            if lbl:IsA("TextLabel") and lbl.Visible and lbl.Text ~= "" then
-                                local a = string.match(lbl.Text, "Age:?%s*(%d+)")
+                        -- Parse Age từ path: {UUID}.Main.PET_AGE_SHADOW
+                        local mainFrame = frame:FindFirstChild("Main")
+                        if mainFrame then
+                            local ageLabel = mainFrame:FindFirstChild("PET_AGE_SHADOW")
+                            if ageLabel and ageLabel:IsA("TextLabel") then
+                                local a = string.match(ageLabel.Text, "(%d+)")
                                 if a then age = tonumber(a) end
-                                
-                                if not string.find(lbl.Text, "Age") and petName == "" then
-                                    petName = lbl.Text
+                            end
+                            
+                            -- Lấy tên pet
+                            for _, lbl in pairs(mainFrame:GetDescendants()) do
+                                if lbl:IsA("TextLabel") and lbl.Visible and lbl.Text ~= "" and petName == "" then
+                                    if not string.find(lbl.Text, "Age") and not string.find(lbl.Text, ":") then
+                                        petName = lbl.Text
+                                    end
                                 end
                             end
                         end
