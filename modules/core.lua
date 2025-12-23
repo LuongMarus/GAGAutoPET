@@ -367,7 +367,7 @@ function Core.ManageGarden(NotifyCallback)
     return totalOccupied, currentTargetCount
 end
 
--- Trồng pets
+-- Trồng pets với kiểm tra Age sau khi plant
 function Core.PlantPets(totalOccupied, currentTargetCount)
     local settings = GetConfig().GetSettings()
     local maxSlots = settings.MaxSlots
@@ -405,26 +405,73 @@ function Core.PlantPets(totalOccupied, currentTargetCount)
             end
             
             if isTarget then
-                local ageMatch = string.match(tool.Name, "Age (%d+)")
-                local age = ageMatch and tonumber(ageMatch) or 0
+                -- Kiểm tra lại giới hạn trước khi plant
+                if currentTargetCount + planted >= farmLimit then
+                    print("[FARM] Dừng plant - đã đạt giới hạn:", currentTargetCount + planted, "/", farmLimit)
+                    break
+                end
+                if totalOccupied + planted >= maxSlots then
+                    print("[FARM] Dừng plant - vườn đầy:", totalOccupied + planted, "/", maxSlots)
+                    break
+                end
                 
-                if age < settings.TargetAge then
-                    -- Kiểm tra lại trước khi plant
-                    if currentTargetCount + planted >= farmLimit then
-                        print("[FARM] Dừng plant - đã đạt giới hạn:", currentTargetCount + planted, "/", farmLimit)
-                        break
+                print("[FARM] Trồng:", tool.Name)
+                Humanoid:EquipTool(tool)
+                task.wait(0.5)
+                tool:Activate()
+                task.wait(1.5)
+                
+                -- Sau khi plant, check Age từ ActivePetUI
+                local plantedAge = 0
+                local plantedName = ""
+                local plantedUUID = tool.Name
+                
+                local PlayerGui = LocalPlayer:FindFirstChild("PlayerGui")
+                if PlayerGui then
+                    local ActiveUI = PlayerGui:FindFirstChild("ActivePetUI")
+                    if ActiveUI then
+                        local List = ActiveUI:FindFirstChild("Frame") and ActiveUI.Frame:FindFirstChild("Main") 
+                            and ActiveUI.Frame.Main:FindFirstChild("PetDisplay") 
+                            and ActiveUI.Frame.Main.PetDisplay:FindFirstChild("ScrollingFrame")
+                        if List then
+                            for _, frame in pairs(List:GetChildren()) do
+                                if frame:IsA("Frame") and frame.Name == plantedUUID then
+                                    -- Tìm thấy pet vừa plant
+                                    for _, lbl in pairs(frame:GetDescendants()) do
+                                        if lbl:IsA("TextLabel") and lbl.Visible and lbl.Text ~= "" then
+                                            local a = string.match(lbl.Text, "Age:?%s*(%d+)")
+                                            if a then plantedAge = tonumber(a) end
+                                            
+                                            if not string.find(lbl.Text, "Age") and plantedName == "" then
+                                                plantedName = lbl.Text
+                                            end
+                                        end
+                                    end
+                                    break
+                                end
+                            end
+                        end
                     end
-                    if totalOccupied + planted >= maxSlots then
-                        print("[FARM] Dừng plant - vườn đầy:", totalOccupied + planted, "/", maxSlots)
-                        break
+                end
+                
+                -- Kiểm tra Age
+                if plantedAge >= settings.TargetAge then
+                    print("[FARM] Pet đã đạt Age", plantedAge, "→ Unequip ngay:", plantedName)
+                    PetsService:FireServer("UnequipPet", plantedUUID)
+                    GetWebhook().SendPetMaxLevel(plantedName, plantedAge, settings.WebhookURL)
+                    
+                    -- Xóa UUID khỏi danh sách
+                    for i, id in ipairs(targetUUIDs) do
+                        if id == plantedUUID then
+                            table.remove(targetUUIDs, i)
+                            print("[FARM] Đã xóa UUID đạt điều kiện")
+                            break
+                        end
                     end
                     
-                    print("[FARM] Trồng:", tool.Name, "Age:", age)
-                    Humanoid:EquipTool(tool)
-                    task.wait(0.3)
-                    tool:Activate()
-                    task.wait(1)
-                    
+                    task.wait(0.5)
+                else
+                    print("[FARM] Pet Age", plantedAge, "→ Giữ lại farm tiếp")
                     planted = planted + 1
                 end
             end
