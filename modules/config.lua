@@ -1,14 +1,9 @@
---[[
-    MODULE: CONFIG
-    DESCRIPTION: Quản lý cấu hình toàn cục
-]]
-
 local Config = {}
 
--- Khởi tạo cấu hình mặc định
 function Config.Initialize()
     getgenv().FarmSettings = getgenv().FarmSettings or {
         IsRunning = false,
+        IsDestroyed = false,
         SelectedSpecies = "",
         TargetAge = 50,
         MaxSlots = 6,
@@ -16,19 +11,18 @@ function Config.Initialize()
         WebhookURL = "",
         ExcludeMutation = true,
         TargetUUIDs = {},
-        PetStorage = {}
+        ActiveSlots = 0
     }
 end
 
--- Lấy settings hiện tại
 function Config.GetSettings()
     return getgenv().FarmSettings
 end
 
--- Cập nhật setting
 function Config.UpdateSetting(key, value)
-    if getgenv().FarmSettings[key] ~= nil then
-        getgenv().FarmSettings[key] = value
+    local s = Config.GetSettings()
+    if s[key] ~= nil then
+        s[key] = value
         return true
     end
     return false

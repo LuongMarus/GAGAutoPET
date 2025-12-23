@@ -1,105 +1,32 @@
---[[
-    PROJECT: HUB SCRIPT AUTO FARM PET
-    VERSION: Marus Ver 1.2 (Module Structure)
-    AUTHOR: Marus
-    UI LIB: Fluent
-    GAME: Grow A Garden
-    
-    STRUCTURE:
-    - main.lua (Entry point)
-    - modules/config.lua (Configuration)
-    - modules/webhook.lua (Discord webhooks)
-    - modules/core.lua (Farm logic)
-    - modules/ui.lua (User interface)
-]]
-
--- Load Fluent UI Library
 local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
-
--- Load Modules từ GitHub
-local cacheBuster = "?v=" .. tostring(os.time()) .. math.random(1000, 9999)
-local baseURL = "https://raw.githubusercontent.com/LuongMarus/GAGAutoPET/main/modules/"
-
--- Setup dependencies trước (placeholder)
 getgenv().__AutoFarmDeps = {}
 
--- Load Config và Webhook trước (không phụ thuộc gì)
-local Config = loadstring(game:HttpGet(baseURL .. "config.lua" .. cacheBuster))()
-local Webhook = loadstring(game:HttpGet(baseURL .. "webhook.lua" .. cacheBuster))()
-
--- Cập nhật dependencies
+-- Load Modules
+local baseURL = "https://raw.githubusercontent.com/LuongMarus/GAGAutoPET/main/modules/"
+local Config = loadstring(game:HttpGet(baseURL .. "config.lua"))()
+local PetStorage = loadstring(game:HttpGet(base.."petstorage.lua"))()
+local Webhook = loadstring(game:HttpGet(base.."webhook.lua"))()
 getgenv().__AutoFarmDeps.Config = Config
+getgenv().__AutoFarmDeps.PetStorage = PetStorage
 getgenv().__AutoFarmDeps.Webhook = Webhook
 
--- Giờ mới load Core (cần Config + Webhook)
-local coreCode = game:HttpGet(baseURL .. "core.lua" .. cacheBuster)
-if not coreCode then
-    error("Failed to download core.lua from GitHub")
-end
-local coreLoader = loadstring(coreCode)
-if not coreLoader then
-    error("Failed to parse core.lua - syntax error")
-end
-local Core = coreLoader()
-if not Core then
-    error("core.lua executed but returned nil")
-end
-
--- Update deps với Core
+local Core = loadstring(game:HttpGet(baseURL .. "core.lua"))()
+local UI = loadstring(game:HttpGet(baseURL .. "ui.lua"))()
 getgenv().__AutoFarmDeps.Core = Core
 
--- Load UI cuối cùng (cần Config + Webhook + Core)
-local uiCode = game:HttpGet(baseURL .. "ui.lua" .. cacheBuster)
-if not uiCode then
-    error("Failed to download ui.lua from GitHub")
-end
-local uiLoader = loadstring(uiCode)
-if not uiLoader then
-    error("Failed to parse ui.lua - syntax error")
-end
-local UI = uiLoader()
-if not UI then
-    error("ui.lua executed but returned nil")
-end
-
--- Khởi tạo config
 Config.Initialize()
+UI.Initialize(Fluent)
 
--- Framework Test Notification
-pcall(function()
-    Fluent:Notify({
-        Title = "Framework Test",
-        Content = "Initializing framework test...",
-        Duration = 3
-    })
-end)
-
--- Khởi tạo UI
-local Window, Tabs = UI.Initialize(Fluent)
-
--- Vòng lặp farm chính
+-- Main Loop
 task.spawn(function()
     while task.wait(1.5) do
-        local settings = Config.GetSettings()
-        if settings.IsRunning then
+        local s = Config.GetSettings()
+        if s.IsRunning then
             pcall(function()
-                -- Scan và cập nhật storage liên tục
-                Core.ScanAndUpdateStorage(function(title, content, duration)
-                    UI.Notify(title, content, duration)
-                end)
-                
-                -- Farm logic
-                local occupied, targetCount = Core.ManageGarden(function(title, content, duration)
-                    UI.Notify(title, content, duration)
-                end)
-                
+                Core.ManageGarden(UI.Notify)
+                local occupied, targetCount = Core.ScanAndUpdateStorage(UI.Notify)
                 Core.PlantPets(occupied, targetCount)
-                
-                -- Cập nhật Misc tab
-                UI.UpdateMiscPetList()
             end)
         end
     end
 end)
-
-print("[MARUS HUB] Loaded successfully with modular structure!")

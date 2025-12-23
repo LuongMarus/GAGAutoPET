@@ -6,6 +6,8 @@ local PetsService = ReplicatedStorage:WaitForChild("GameEvents"):WaitForChild("P
 
 local function GetDeps() return getgenv().__AutoFarmDeps end
 
+local PetStorage = GetDeps().PetStorage
+
 function Core.IsMutation(name)
     local list = {"Mega", "Rainbow", "Ascended", "Nightmare", "Shiny", "Golden"}
     for _, k in ipairs(list) do
