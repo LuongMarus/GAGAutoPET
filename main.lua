@@ -48,14 +48,12 @@ local function LoadModule(name)
 end
 
 -- ===== LOAD CORE MODULES (ORDER MATTERS) =====
-local Config     = LoadModule("config.lua")
-local PetStorage = LoadModule("petstorage.lua")
-local Webhook    = LoadModule("webhook.lua")
+local Config  = LoadModule("config.lua")
+local Webhook = LoadModule("webhook.lua")
 
 -- Inject deps early
-getgenv().__AutoFarmDeps.Config     = Config
-getgenv().__AutoFarmDeps.PetStorage = PetStorage
-getgenv().__AutoFarmDeps.Webhook    = Webhook
+getgenv().__AutoFarmDeps.Config  = Config
+getgenv().__AutoFarmDeps.Webhook = Webhook
 
 -- Init config BEFORE Core
 assert(Config.Initialize, "[BOOT] Config.Initialize missing")
