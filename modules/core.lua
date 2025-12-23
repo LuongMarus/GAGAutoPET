@@ -312,16 +312,19 @@ function Core.ManageGarden(NotifyCallback)
             local isTarget = false
             
             for _, lbl in pairs(frame:GetDescendants()) do
-                if lbl:IsA("TextLabel") and lbl.Visible then
+                if lbl:IsA("TextLabel") and lbl.Visible and lbl.Text ~= "" then
+                    print("[DEBUG UI]", uuid, "- Label:", lbl.Text)
+                    
                     -- Parse Age (format: "Age: 50" hoặc "Age 50")
                     local a = string.match(lbl.Text, "Age:?%s*(%d+)")
                     if a then 
                         age = tonumber(a)
-                        print("[DEBUG] Detected Age:", age, "from text:", lbl.Text)
+                        print("[DEBUG] ✓ Detected Age:", age, "from text:", lbl.Text)
                     end
                     
-                    if not string.find(lbl.Text, "Age") and lbl.Text ~= "" and petName == "" then
+                    if not string.find(lbl.Text, "Age") and petName == "" then
                         petName = lbl.Text
+                        print("[DEBUG] ✓ Detected Name:", petName)
                     end
                 end
             end
