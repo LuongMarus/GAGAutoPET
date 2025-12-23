@@ -240,7 +240,7 @@ function UI.Initialize(Fluent)
     UI.BuildSettingsTab(Fluent)
 
     Fluent:Notify({
-        Title = "Marus Auto Farm Ver 1.1",
+        Title = "Marus Auto Farm Ver 1.0",
         Content = "Script Loaded Successfully!",
         Duration = 5
     })
@@ -259,7 +259,7 @@ function UI.BuildInfoTab(Fluent)
         Title = "Copy Discord Link",
         Description = "Copy link Discord vào clipboard",
         Callback = function()
-            setclipboard("https://discord.gg/YourLinkHere")
+            setclipboard("https://discord.gg/H7CfQS238v")
             Fluent:Notify({Title = "Success", Content = "Đã copy link Discord!", Duration = 5})
         end
     })
@@ -283,12 +283,9 @@ function UI.BuildFarmTab(Fluent)
             GetConfig().UpdateSetting("SelectedSpecies", Value)
             
             if Value ~= "" then
-                GetCore().ScanAndBuildTargetList()
-                Fluent:Notify({
-                    Title = "Auto Storage",
-                    Content = "Pet sẽ được tự động lưu và scan liên tục!",
-                    Duration = 5
-                })
+                GetCore().ScanAndBuildTargetList(function(title, content, duration)
+                    Fluent:Notify({Title = title, Content = content, Duration = duration})
+                end)
             end
         end
     })
@@ -299,23 +296,18 @@ function UI.BuildFarmTab(Fluent)
         Default = true,
         Callback = function(Value)
             GetConfig().UpdateSetting("ExcludeMutation", Value)
-            if Value then
-                Fluent:Notify({
-                    Title = "Exclude Mutation",
-                    Content = "Chỉ farm pet gốc, không farm mutation!",
-                    Duration = 3
-                })
-            else
-                Fluent:Notify({
-                    Title = "Include All",
-                    Content = "Farm tất cả pet kể cả mutation!",
-                    Duration = 3
-                })
-            end
+            
+            Fluent:Notify({
+                Title = "Checkbox Changed",
+                Content = "Value: " .. tostring(Value),
+                Duration = 2
+            })
             
             local settings = GetConfig().GetSettings()
             if settings.SelectedSpecies ~= "" then
-                GetCore().ScanAndBuildTargetList()
+                GetCore().ScanAndBuildTargetList(function(title, content, duration)
+                    Fluent:Notify({Title = title, Content = content, Duration = duration})
+                end)
             end
         end
     })
@@ -332,7 +324,9 @@ function UI.BuildFarmTab(Fluent)
                     Duration = 3
                 })
             else
-                GetCore().ScanAndBuildTargetList()
+                GetCore().ScanAndBuildTargetList(function(title, content, duration)
+                    Fluent:Notify({Title = title, Content = content, Duration = duration})
+                end)
             end
         end
     })
@@ -377,6 +371,13 @@ function UI.BuildFarmTab(Fluent)
         Default = false,
         Callback = function(Value)
             GetConfig().UpdateSetting("IsRunning", Value)
+            
+            Fluent:Notify({
+                Title = "Toggle Changed",
+                Content = "Auto Farm " .. (Value and "ON" or "OFF"),
+                Duration = 2
+            })
+            
             local settings = GetConfig().GetSettings()
             if Value and (settings.SelectedSpecies == "" or settings.SelectedSpecies == nil) then
                 Fluent:Notify({

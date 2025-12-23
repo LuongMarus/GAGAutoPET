@@ -44,12 +44,15 @@ function Core.IsExcludedMutation(petName)
 end
 
 -- Scan và build danh sách pet
-function Core.ScanAndBuildTargetList()
+function Core.ScanAndBuildTargetList(NotifyCallback)
     local settings = GetConfig().GetSettings()
     local targetName = settings.SelectedSpecies
     
     if targetName == "" or targetName == nil then 
         print("[SCAN] Chưa chọn loài pet!")
+        if NotifyCallback then
+            NotifyCallback("Error", "Chưa chọn loài pet!", 3)
+        end
         return 
     end
     
@@ -165,6 +168,10 @@ function Core.ScanAndBuildTargetList()
     settings.TargetUUIDs = uuidList
     print("[SCAN] Hoàn tất! Tìm thấy", #uuidList, "pet cần farm")
     print("[STORAGE] Đã lưu", #uuidList, "pet vào PetStorage")
+    
+    if NotifyCallback then
+        NotifyCallback("Scan Complete", "Tìm thấy " .. #uuidList .. " pet cần farm!", 5)
+    end
     
     return #uuidList
 end

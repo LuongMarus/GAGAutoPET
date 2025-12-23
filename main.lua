@@ -42,6 +42,15 @@ local UI = loadstring(game:HttpGet(baseURL .. "ui.lua"))()
 -- Khởi tạo config
 Config.Initialize()
 
+-- Framework Test Notification
+pcall(function()
+    Fluent:Notify({
+        Title = "Framework Test",
+        Content = "Initializing framework test...",
+        Duration = 3
+    })
+end)
+
 -- Khởi tạo UI
 local Window, Tabs = UI.Initialize(Fluent)
 
