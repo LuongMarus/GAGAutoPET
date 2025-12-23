@@ -1,9 +1,3 @@
---[[
-    MODULE: CORE
-    VERSION: FINAL FIXED
-    DESCRIPTION: Logic farm hoàn chỉnh (Fix Syntax, Fix Radiant, Fix Real-time)
-]]
-
 local Core = {}
 
 local Players = game:GetService("Players")
@@ -11,7 +5,6 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local LocalPlayer = Players.LocalPlayer
 local PetsService = ReplicatedStorage:WaitForChild("GameEvents"):WaitForChild("PetsService")
 
--- Lazy load dependencies
 local function GetConfig()
     return getgenv().__AutoFarmDeps.Config
 end
@@ -20,11 +13,8 @@ local function GetWebhook()
     return getgenv().__AutoFarmDeps.Webhook
 end
 
--- 1. KIỂM TRA MUTATION (Đã thêm Radiant)
 function Core.IsMutation(petName)
-    local mutationPrefixes = {
-        "Mega", "Rainbow", "Ascended", "Nightmare",
-    }
+    local mutationPrefixes = {"Mega", "Rainbow", "Ascended", "Nightmare"}
     for _, prefix in ipairs(mutationPrefixes) do
         if string.find(petName, prefix) then
             return true, prefix
@@ -33,14 +23,12 @@ function Core.IsMutation(petName)
     return false, "Normal"
 end
 
--- 2. QUÉT VÀ TẠO DANH SÁCH FARM
 function Core.ScanAndBuildTargetList(NotifyCallback)
     local settings = GetConfig().GetSettings()
     local targetName = settings.SelectedSpecies
     
     if targetName == "" or targetName == nil then 
-        print("[SCAN] Chưa chọn loài pet!")
-        if NotifyCallback then NotifyCallback("Error", "Chưa chọn loài pet!", 3) end
+        if NotifyCallback then NotifyCallback("Error", "No pet selected!", 3) end
         return 
     end
     
@@ -52,16 +40,13 @@ function Core.ScanAndBuildTargetList(NotifyCallback)
         local baseName = string.match(tool.Name, "^(.+) %[Age") or tool.Name
         local baseNameLower = string.lower(baseName)
         
-        -- Chỉ lấy đúng loài pet đang chọn
         if string.find(baseNameLower, searchName, 1, true) then
             local isMutated, _ = Core.IsMutation(baseName)
             
-            -- Nếu pet nằm trong Balo mà là Mutation -> Bỏ qua (Không lôi ra farm nữa)
             if location == "Backpack" and excludeMutation and isMutated then
                 return
             end
 
-            -- Nếu pet đang ở trong Vườn (Character/Active) hoặc là pet thường -> Thêm vào list
             table.insert(uuidList, tool.Name)
             settings.PetStorage[tool.Name] = {
                 baseName = baseName,
@@ -71,14 +56,12 @@ function Core.ScanAndBuildTargetList(NotifyCallback)
         end
     end
 
-    -- Quét Balo (Nơi 1)
     if LocalPlayer:FindFirstChild("Backpack") then
         for _, tool in pairs(LocalPlayer.Backpack:GetChildren()) do
             if tool:IsA("Tool") then AddToList(tool, "Backpack") end
         end
     end
     
-    -- Quét Pet đang nuôi trong vườn (ActivePetUI) - Nơi 2 - Quan trọng để unequip pet đã đạt yêu cầu
     local PlayerGui = LocalPlayer:FindFirstChild("PlayerGui")
     if PlayerGui then
         local ActiveUI = PlayerGui:FindFirstChild("ActivePetUI")
@@ -93,7 +76,6 @@ function Core.ScanAndBuildTargetList(NotifyCallback)
                         local petName = ""
                         local mainFrame = frame.Main
                         
-                        -- Tìm tên pet
                         for _, lbl in pairs(mainFrame:GetDescendants()) do
                             if lbl:IsA("TextLabel") and lbl.Visible and lbl.Text ~= "" and petName == "" then
                                 if not string.find(lbl.Text, "Age") and not string.find(lbl.Text, ":") then
@@ -117,7 +99,6 @@ function Core.ScanAndBuildTargetList(NotifyCallback)
     return #uuidList
 end
 
--- 3. CẬP NHẬT STORAGE TỰ ĐỘNG (Khi có pet mới vào balo)
 function Core.ScanAndUpdateStorage(NotifyCallback)
     local settings = GetConfig().GetSettings()
     local targetName = settings.SelectedSpecies
@@ -127,7 +108,6 @@ function Core.ScanAndUpdateStorage(NotifyCallback)
     local excludeMutation = settings.ExcludeMutation
     local targetUUIDs = settings.TargetUUIDs
     
-    -- Chỉ quét Backpack (Character không lưu trữ pet)
     if LocalPlayer:FindFirstChild("Backpack") then
         for _, tool in pairs(LocalPlayer.Backpack:GetChildren()) do
             if tool:IsA("Tool") then
@@ -135,7 +115,6 @@ function Core.ScanAndUpdateStorage(NotifyCallback)
                 local baseNameLower = string.lower(baseName)
                 
                 if string.find(baseNameLower, searchName, 1, true) then
-                    -- Nếu là mutation thì bỏ qua, không thêm vào list farm
                     if not (excludeMutation and Core.IsMutation(baseName)) then
                         local isTarget = false
                         for _, uuid in ipairs(targetUUIDs) do
@@ -155,7 +134,6 @@ function Core.ScanAndUpdateStorage(NotifyCallback)
     end
 end
 
--- 4. QUẢN LÝ VƯỜN (Logic tháo pet Radiant/Max Level)
 function Core.ManageGarden(NotifyCallback)
     local settings = GetConfig().GetSettings()
     local PlayerGui = LocalPlayer:FindFirstChild("PlayerGui")
@@ -191,14 +169,12 @@ function Core.ManageGarden(NotifyCallback)
             local petName = ""
             local isTarget = false
             
-            -- Lấy tuổi
             local ageLabel = mainFrame:FindFirstChild("PET_AGE_SHADOW")
             if ageLabel and ageLabel:IsA("TextLabel") then
                 local a = string.match(ageLabel.Text, "(%d+)")
                 if a then age = tonumber(a) end
             end
             
-            -- Lấy tên
             for _, lbl in pairs(mainFrame:GetDescendants()) do
                 if lbl:IsA("TextLabel") and lbl.Visible and lbl.Text ~= "" and petName == "" then
                     if not string.find(lbl.Text, "Age") and not string.find(lbl.Text, ":") then
@@ -207,7 +183,6 @@ function Core.ManageGarden(NotifyCallback)
                 end
             end
             
-            -- Kiểm tra có nằm trong list cần xử lý không
             for _, targetID in ipairs(targetUUIDs) do
                 if uuid == targetID then isTarget = true; break end
             end
@@ -215,13 +190,12 @@ function Core.ManageGarden(NotifyCallback)
             if isTarget then
                 currentTargetCount = currentTargetCount + 1
                 
-                -- LOGIC CHÍNH: Đủ tuổi HOẶC là Mutation -> THÁO
                 local isMaxAge = age >= settings.TargetAge
                 local isMutated, mutType = Core.IsMutation(petName)
                 
                 if isMaxAge or isMutated then
                     local reason = isMutated and ("Mutation: " .. mutType) or ("Max Age: " .. age)
-                    print("[FARM] Thu hoạch:", petName, "| Lý do:", reason)
+                    print("[FARM] Harvest:", petName, "| Reason:", reason)
                     
                     if NotifyCallback then NotifyCallback("Harvesting", petName .. " (" .. reason .. ")", 3) end
                     
@@ -233,7 +207,6 @@ function Core.ManageGarden(NotifyCallback)
                         GetWebhook().SendPetMaxLevel(petName, age, settings.WebhookURL)
                     end
                     
-                    -- Xóa khỏi list farm để tool không cố xử lý nữa
                     for i, id in ipairs(targetUUIDs) do
                         if id == uuid then table.remove(targetUUIDs, i); break end
                     end
@@ -248,7 +221,6 @@ function Core.ManageGarden(NotifyCallback)
     return totalOccupied, currentTargetCount
 end
 
--- 5. TRỒNG PET (Có check ngay lập tức)
 function Core.PlantPets(totalOccupied, currentTargetCount)
     local settings = GetConfig().GetSettings()
     local maxSlots = settings.MaxSlots
@@ -273,13 +245,12 @@ function Core.PlantPets(totalOccupied, currentTargetCount)
             if isTarget then
                 if currentTargetCount + planted >= farmLimit or totalOccupied + planted >= maxSlots then break end
                 
-                print("[FARM] Trồng:", tool.Name)
+                print("[FARM] Plant:", tool.Name)
                 Humanoid:EquipTool(tool)
                 task.wait(0.5)
                 tool:Activate()
                 task.wait(1.5)
                 
-                -- Kiểm tra ngay sau khi trồng: Nếu lỡ trồng con xịn -> Tháo liền
                 local plantedUUID = tool.Name
                 local PlayerGui = LocalPlayer:FindFirstChild("PlayerGui")
                 if PlayerGui then
@@ -312,8 +283,7 @@ function Core.PlantPets(totalOccupied, currentTargetCount)
                                 local isMutated, mutType = Core.IsMutation(plantedName)
 
                                 if isMaxAge or isMutated then
-                                    local reason = isMutated and ("Mutation: " .. mutType) or ("Age " .. plantedAge)
-                                    print("[FARM] Pet vừa trồng đã ĐẠT, gỡ luôn:", plantedName)
+                                    print("[FARM] Just planted pet is DONE, unequip:", plantedName)
                                     PetsService:FireServer("UnequipPet", plantedUUID)
                                     for i, id in ipairs(targetUUIDs) do
                                         if id == plantedUUID then table.remove(targetUUIDs, i); break end
@@ -333,22 +303,21 @@ function Core.PlantPets(totalOccupied, currentTargetCount)
     end
 end
 
--- 6. HÀM DASHBOARD (Dùng cho tab Misc - Realtime)
 function Core.GetDashboardInfo()
     local settings = GetConfig().GetSettings()
     local targetUUIDs = settings.TargetUUIDs or {}
     
     local PlayerGui = LocalPlayer:FindFirstChild("PlayerGui")
-    if not PlayerGui then return "Đang tải GUI..." end
+    if not PlayerGui then return "Loading GUI..." end
     
     local ActiveUI = PlayerGui:FindFirstChild("ActivePetUI")
-    if not ActiveUI then return "Chưa mở vườn" end
+    if not ActiveUI then return "Garden not open" end
     
     local List = ActiveUI:FindFirstChild("Frame") and ActiveUI.Frame:FindFirstChild("Main") 
         and ActiveUI.Frame.Main:FindFirstChild("PetDisplay") 
         and ActiveUI.Frame.Main.PetDisplay:FindFirstChild("ScrollingFrame")
         
-    if not List then return "Không tìm thấy danh sách pet" end
+    if not List then return "Pet list not found" end
     
     local info = ""
     for _, frame in pairs(List:GetChildren()) do
@@ -377,7 +346,7 @@ function Core.GetDashboardInfo()
         end
     end
     
-    return info ~= "" and info or "Vườn trống"
+    return info ~= "" and info or "Garden empty"
 end
 
 return Core
