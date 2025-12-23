@@ -39,7 +39,7 @@ function Core.ScanAndUpdateStorage(Notify)
                 local age = 0
                 
                 for _, lbl in pairs(frame:GetDescendants()) do
-                    if lbl:IsA("TextLabel") and lbl.Visible then
+                    if lbl:IsA("TextLabel") and lbl.Visible and lbl.Text then
                         local a = string.match(lbl.Text, "Age:%s*(%d+)")
                         if a then age = tonumber(a) 
                         elseif lbl.Text ~= "" and not string.find(lbl.Text, "Age") then
@@ -48,7 +48,7 @@ function Core.ScanAndUpdateStorage(Notify)
                     end
                 end
 
-                if string.find(string.lower(petName), searchName) then
+                if petName ~= "" and string.find(string.lower(petName), searchName) then
                     targetInGarden = targetInGarden + 1
                     s.PetStorage[uuid] = {Name = petName, Age = age, Location = "Garden"}
                 end
