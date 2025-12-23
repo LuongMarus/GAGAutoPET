@@ -175,16 +175,52 @@ local function UpdateMiscPetList()
         end
         
         if not found then
-            local baseName = string.match(uuid, "^(.+) %[") or uuid
-            petInfo.name = baseName
+            -- Pet đang ở vườn, cần scan từ ActivePetUI để lấy Age chính xác
+            local PlayerGui = LocalPlayer:FindFirstChild("PlayerGui")
+            if PlayerGui then
+                local ActiveUI = PlayerGui:FindFirstChild("ActivePetUI")
+                if ActiveUI then
+                    local List = ActiveUI:FindFirstChild("Frame") and ActiveUI.Frame:FindFirstChild("Main") 
+                        and ActiveUI.Frame.Main:FindFirstChild("PetDisplay") 
+                        and ActiveUI.Frame.Main.PetDisplay:FindFirstChild("ScrollingFrame")
+                    if List then
+                        for _, frame in pairs(List:GetChildren()) do
+                            if frame:IsA("Frame") and frame.Name == uuid then
+                                -- Tìm thấy pet trong UI, parse Age từ labels
+                                for _, lbl in pairs(frame:GetDescendants()) do
+                                    if lbl:IsA("TextLabel") and lbl.Visible then
+                                        local a = string.match(lbl.Text, "Age:?%s*(%d+)")
+                                        if a then 
+                                            petInfo.age = tonumber(a)
+                                        end
+                                        
+                                        if not string.find(lbl.Text, "Age") and lbl.Text ~= "" and petInfo.name == "Unknown" then
+                                            petInfo.name = lbl.Text
+                                        end
+                                    end
+                                end
+                                break
+                            end
+                        end
+                    end
+                end
+            end
             
-            local ageMatch = string.match(uuid, "Age (%d+)")
-            petInfo.age = ageMatch and tonumber(ageMatch) or 0
+            -- Fallback: Parse từ UUID nếu không tìm thấy trong UI
+            if petInfo.name == "Unknown" then
+                local baseName = string.match(uuid, "^(.+) %[") or uuid
+                petInfo.name = baseName
+            end
+            
+            if petInfo.age == 0 then
+                local ageMatch = string.match(uuid, "Age (%d+)")
+                petInfo.age = ageMatch and tonumber(ageMatch) or 0
+            end
             
             local weightMatch = string.match(uuid, "(%d+%.%d+) KG")
             petInfo.weight = weightMatch or "N/A"
             
-            local isMut, mutType = GetCore().IsMutation(baseName)
+            local isMut, mutType = GetCore().IsMutation(petInfo.name)
             petInfo.mutation = mutType
             
             petInfo.status = petInfo.age >= targetAge and "[OK] ĐẠT" or "[~] ĐÃ PLANT"

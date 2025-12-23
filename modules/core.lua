@@ -313,8 +313,12 @@ function Core.ManageGarden(NotifyCallback)
             
             for _, lbl in pairs(frame:GetDescendants()) do
                 if lbl:IsA("TextLabel") and lbl.Visible then
-                    local a = string.match(lbl.Text, "Age:%s*(%d+)")
-                    if a then age = tonumber(a) end
+                    -- Parse Age (format: "Age: 50" hoặc "Age 50")
+                    local a = string.match(lbl.Text, "Age:?%s*(%d+)")
+                    if a then 
+                        age = tonumber(a)
+                        print("[DEBUG] Detected Age:", age, "from text:", lbl.Text)
+                    end
                     
                     if not string.find(lbl.Text, "Age") and lbl.Text ~= "" and petName == "" then
                         petName = lbl.Text
@@ -363,8 +367,18 @@ end
 -- Trồng pets
 function Core.PlantPets(totalOccupied, currentTargetCount)
     local settings = GetConfig().GetSettings()
-    if totalOccupied >= settings.MaxSlots then return end
-    if currentTargetCount >= settings.FarmLimit then return end
+    local maxSlots = settings.MaxSlots
+    local farmLimit = settings.FarmLimit
+    
+    -- Kiểm tra giới hạn
+    if totalOccupied >= maxSlots then 
+        print("[FARM] Vườn đã đầy:", totalOccupied, "/", maxSlots)
+        return 
+    end
+    if currentTargetCount >= farmLimit then 
+        print("[FARM] Đã đạt giới hạn farm:", currentTargetCount, "/", farmLimit)
+        return 
+    end
 
     local Backpack = LocalPlayer:FindFirstChild("Backpack")
     local Char = LocalPlayer.Character
@@ -374,6 +388,8 @@ function Core.PlantPets(totalOccupied, currentTargetCount)
     local targetUUIDs = settings.TargetUUIDs
     
     if #targetUUIDs == 0 then return end
+
+    local planted = 0
 
     for _, tool in pairs(Backpack:GetChildren()) do
         if tool:IsA("Tool") then
@@ -390,17 +406,23 @@ function Core.PlantPets(totalOccupied, currentTargetCount)
                 local age = ageMatch and tonumber(ageMatch) or 0
                 
                 if age < settings.TargetAge then
+                    -- Kiểm tra lại trước khi plant
+                    if currentTargetCount + planted >= farmLimit then
+                        print("[FARM] Dừng plant - đã đạt giới hạn:", currentTargetCount + planted, "/", farmLimit)
+                        break
+                    end
+                    if totalOccupied + planted >= maxSlots then
+                        print("[FARM] Dừng plant - vườn đầy:", totalOccupied + planted, "/", maxSlots)
+                        break
+                    end
+                    
                     print("[FARM] Trồng:", tool.Name, "Age:", age)
                     Humanoid:EquipTool(tool)
                     task.wait(0.3)
                     tool:Activate()
                     task.wait(1)
                     
-                    totalOccupied = totalOccupied + 1
-                    currentTargetCount = currentTargetCount + 1
-                    
-                    if totalOccupied >= settings.MaxSlots then break end
-                    if currentTargetCount >= settings.FarmLimit then break end
+                    planted = planted + 1
                 end
             end
         end
