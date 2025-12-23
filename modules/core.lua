@@ -22,9 +22,7 @@ end
 -- Kiểm tra mutation
 function Core.IsMutation(petName)
     local mutationPrefixes = {
-        "Mega", "Rainbow", "Ascended", "Nightmare", "Golden",
-        "Dark", "Shadow", "Crystal", "Mystic", "Lunar", 
-        "Solar", "Shiny", "Legendary", "Mythic", "Divine", "Celestial"
+        "Mega", "Rainbow", "Ascended", "Nightmare",
     }
     for _, prefix in ipairs(mutationPrefixes) do
         if string.find(petName, prefix) then
