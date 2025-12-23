@@ -31,25 +31,34 @@ getgenv().__AutoFarmDeps.Config = Config
 getgenv().__AutoFarmDeps.Webhook = Webhook
 
 -- Giờ mới load Core (cần Config + Webhook)
-local success, Core = pcall(function()
-    return loadstring(game:HttpGet(baseURL .. "core.lua"))()
-end)
-if not success then
-    error("Failed to load core.lua: " .. tostring(Core))
+local coreCode = game:HttpGet(baseURL .. "core.lua")
+if not coreCode then
+    error("Failed to download core.lua from GitHub")
 end
+local coreLoader = loadstring(coreCode)
+if not coreLoader then
+    error("Failed to parse core.lua - syntax error")
+end
+local Core = coreLoader()
 if not Core then
-    error("core.lua returned nil")
+    error("core.lua executed but returned nil")
 end
 
 -- Update deps với Core
 getgenv().__AutoFarmDeps.Core = Core
 
 -- Load UI cuối cùng (cần Config + Webhook + Core)
-local success2, UI = pcall(function()
-    return loadstring(game:HttpGet(baseURL .. "ui.lua"))()
-end)
-if not success2 then
-    error("Failed to load ui.lua: " .. tostring(UI))
+local uiCode = game:HttpGet(baseURL .. "ui.lua")
+if not uiCode then
+    error("Failed to download ui.lua from GitHub")
+end
+local uiLoader = loadstring(uiCode)
+if not uiLoader then
+    error("Failed to parse ui.lua - syntax error")
+end
+local UI = uiLoader()
+if not UI then
+    error("ui.lua executed but returned nil")
 end
 
 -- Khởi tạo config
