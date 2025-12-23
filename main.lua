@@ -19,17 +19,24 @@ local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/
 -- Load Modules từ GitHub
 local baseURL = "https://raw.githubusercontent.com/LuongMarus/GAGAutoPET/main/modules/"
 
+-- Load Config và Webhook trước (không phụ thuộc gì)
 local Config = loadstring(game:HttpGet(baseURL .. "config.lua"))()
 local Webhook = loadstring(game:HttpGet(baseURL .. "webhook.lua"))()
-local Core = loadstring(game:HttpGet(baseURL .. "core.lua"))()
-local UI = loadstring(game:HttpGet(baseURL .. "ui.lua"))()
 
--- Setup dependencies cho modules
+-- Setup dependencies cho modules khác
 getgenv().__AutoFarmDeps = {
     Config = Config, 
-    Webhook = Webhook,
-    Core = Core
+    Webhook = Webhook
 }
+
+-- Giờ mới load Core và UI (cần Config + Webhook)
+local Core = loadstring(game:HttpGet(baseURL .. "core.lua"))()
+
+-- Update deps với Core
+getgenv().__AutoFarmDeps.Core = Core
+
+-- Load UI cuối cùng (cần Config + Webhook + Core)
+local UI = loadstring(game:HttpGet(baseURL .. "ui.lua"))()
 
 -- Khởi tạo config
 Config.Initialize()
