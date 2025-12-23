@@ -323,17 +323,16 @@ function Core.ManageGarden(NotifyCallback)
             
             -- Lấy Age từ path: {UUID}.Main.PET_AGE_SHADOW
             local ageLabel = mainFrame:FindFirstChild("PET_AGE_SHADOW")
-                if ageLabel and ageLabel:IsA("TextLabel") then
-                    local a = string.match(ageLabel.Text, "(%d+)")
-                    if a then age = tonumber(a) end
-                end
-                
-                -- Lấy tên pet
-                for _, lbl in pairs(mainFrame:GetDescendants()) do
-                    if lbl:IsA("TextLabel") and lbl.Visible and lbl.Text ~= "" and petName == "" then
-                        if not string.find(lbl.Text, "Age") and not string.find(lbl.Text, ":") then
-                            petName = lbl.Text
-                        end
+            if ageLabel and ageLabel:IsA("TextLabel") then
+                local a = string.match(ageLabel.Text, "(%d+)")
+                if a then age = tonumber(a) end
+            end
+            
+            -- Lấy tên pet
+            for _, lbl in pairs(mainFrame:GetDescendants()) do
+                if lbl:IsA("TextLabel") and lbl.Visible and lbl.Text ~= "" and petName == "" then
+                    if not string.find(lbl.Text, "Age") and not string.find(lbl.Text, ":") then
+                        petName = lbl.Text
                     end
                 end
             end
