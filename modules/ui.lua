@@ -24,6 +24,7 @@ end
 -- UI References
 local Window
 local Tabs = {}
+local FluentLib
 local MiscUI = {
     PetListLabel = nil
 }
@@ -251,6 +252,7 @@ end
 
 -- Khởi tạo UI
 function UI.Initialize(Fluent)
+    FluentLib = Fluent
     Window = Fluent:CreateWindow({
         Title = "Marus Hub | Marus Ver 1.1",
         SubTitle = "Grow A Garden",
@@ -475,8 +477,8 @@ end
 
 -- Hàm notify helper
 function UI.Notify(title, content, duration)
-    if Window then
-        Window:Notify({
+    if FluentLib then
+        FluentLib:Notify({
             Title = title,
             Content = content,
             Duration = duration

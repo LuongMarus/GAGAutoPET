@@ -14,7 +14,7 @@ local function GetWebhook()
 end
 
 function Core.IsMutation(petName)
-    local mutationPrefixes = {"Mega", "Rainbow", "Ascended", "Nightmare"}
+    local mutationPrefixes = {"Mega", "Rainbow", "Ascended", "Nightmare", "Golden", "Radiant", "Shiny"}
     for _, prefix in ipairs(mutationPrefixes) do
         if string.find(petName, prefix) then
             return true, prefix
@@ -137,7 +137,7 @@ function Core.ManageGarden(NotifyCallback)
             local petName = ""
             local age = 0
             
-            local ageLabel = mainFrame:FindFirstChild("PET_AGE_SHADOW")
+            local ageLabel = mainFrame:FindFirstChild("PET_AGE_SHADOW", true)
             if ageLabel and ageLabel:IsA("TextLabel") then
                 local a = string.match(ageLabel.Text, "(%d+)")
                 if a then age = tonumber(a) end
@@ -151,10 +151,14 @@ function Core.ManageGarden(NotifyCallback)
                 end
             end
             
+            print("[DEBUG] Found pet in garden: '" .. petName .. "' age: " .. age)
+            
             if string.find(string.lower(petName), searchName, 1, true) then
                 targetInGarden = targetInGarden + 1
                 
                 local isDone, reason = Core.IsDone(petName, age, targetAge)
+                
+                print("[DEBUG] Checking pet: '" .. petName .. "' isDone: " .. tostring(isDone) .. " reason: " .. (reason or "none"))
                 
                 if isDone then
                     print("[FARM] Unequip:", petName, "| Age:", age, "| Reason:", reason)
@@ -290,13 +294,11 @@ end
 function Core.GetDashboardInfo()
     local settings = GetConfig().GetSettings()
     local targetName = settings.SelectedSpecies
-    if targetName == "" or targetName == nil then return "No pet selected" end
-    
-    local searchName = string.lower(targetName)
     local targetAge = settings.TargetAge
+    local targetUUIDs = settings.TargetUUIDs or {}
     
     local PlayerGui = LocalPlayer:FindFirstChild("PlayerGui")
-    if not PlayerGui then return "Loading..." end
+    if not PlayerGui then return "Loading GUI..." end
     
     local ActiveUI = PlayerGui:FindFirstChild("ActivePetUI")
     if not ActiveUI then return "Open garden first" end
@@ -306,14 +308,20 @@ function Core.GetDashboardInfo()
         and ActiveUI.Frame.Main.PetDisplay:FindFirstChild("ScrollingFrame")
     if not List then return "Garden not found" end
     
-    local info = ""
+    local infoText = ""
+    local petCount = 0
+    local farmingCount = 0
+    local doneCount = 0
+    
     for _, frame in pairs(List:GetChildren()) do
         if frame:IsA("Frame") and frame:FindFirstChild("Main") then
+            petCount = petCount + 1
+            local uuid = frame.Name
             local mainFrame = frame.Main
             local petName = ""
             local age = 0
             
-            local ageLabel = mainFrame:FindFirstChild("PET_AGE_SHADOW")
+            local ageLabel = mainFrame:FindFirstChild("PET_AGE_SHADOW", true)
             if ageLabel and ageLabel:IsA("TextLabel") then
                 local a = string.match(ageLabel.Text, "(%d+)")
                 if a then age = tonumber(a) end
@@ -321,21 +329,39 @@ function Core.GetDashboardInfo()
             
             for _, lbl in pairs(mainFrame:GetDescendants()) do
                 if lbl:IsA("TextLabel") and lbl.Visible and lbl.Text ~= "" and petName == "" then
-                    if not string.find(lbl.Text, "Age") and not string.find(lbl.Text, ":") then
+                    if not string.find(lbl.Text, "Age") and not string.find(lbl.Text, ":") and lbl.Text ~= "Shadow" then
                         petName = lbl.Text
                     end
                 end
             end
             
             if petName ~= "" then
-                local isDone, _ = Core.IsDone(petName, age, targetAge)
-                local status = isDone and "[DONE]" or "[FARMING]"
-                info = info .. petName .. " Age:" .. age .. " " .. status .. "\n"
+                local isDone, reason = Core.IsDone(petName, age, targetAge)
+                local status = "[OTHER]"
+                
+                if isDone then
+                    status = "[DONE]"
+                    doneCount = doneCount + 1
+                else
+                    local isFarming = false
+                    for _, id in ipairs(targetUUIDs) do
+                        if id == uuid then isFarming = true; break end
+                    end
+                    if isFarming then
+                        status = "[FARM]"
+                        farmingCount = farmingCount + 1
+                    end
+                end
+                
+                infoText = infoText .. string.format("%s Lv.%-3d %s\n", status, age, petName)
             end
         end
     end
     
-    return info ~= "" and info or "Garden empty"
+    local header = string.format("=== Garden: %d/%d | Farming: %d | Done: %d ===\nTarget: %s | Age >= %d\n\n", 
+        petCount, settings.MaxSlots, farmingCount, doneCount, targetName or "None", targetAge)
+        
+    return header .. (infoText ~= "" and infoText or "Garden empty")
 end
 
 return Core
