@@ -10,9 +10,9 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local LocalPlayer = Players.LocalPlayer
 local PetsService = ReplicatedStorage:WaitForChild("GameEvents"):WaitForChild("PetsService")
 
--- Dependencies (load từ getgenv nếu có, fallback về require)
-local Config = getgenv().__AutoFarmDeps and getgenv().__AutoFarmDeps.Config or require(script.Parent.config)
-local Webhook = getgenv().__AutoFarmDeps and getgenv().__AutoFarmDeps.Webhook or require(script.Parent.webhook)
+-- Dependencies
+local Config = getgenv().__AutoFarmDeps.Config
+local Webhook = getgenv().__AutoFarmDeps.Webhook
 
 -- Kiểm tra mutation
 function Core.IsMutation(petName)

@@ -8,10 +8,10 @@ local UI = {}
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 
--- Dependencies (load từ getgenv nếu có, fallback về require)
-local Config = getgenv().__AutoFarmDeps and getgenv().__AutoFarmDeps.Config or require(script.Parent.config)
-local Core = getgenv().__AutoFarmDeps and getgenv().__AutoFarmDeps.Core or require(script.Parent.core)
-local Webhook = getgenv().__AutoFarmDeps and getgenv().__AutoFarmDeps.Webhook or require(script.Parent.webhook)
+-- Dependencies
+local Config = getgenv().__AutoFarmDeps.Config
+local Core = getgenv().__AutoFarmDeps.Core
+local Webhook = getgenv().__AutoFarmDeps.Webhook
 
 -- UI References
 local Window
