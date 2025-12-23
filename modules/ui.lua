@@ -457,11 +457,21 @@ end
 
 -- Build Settings tab
 function UI.BuildSettingsTab(Fluent)
+    local settings = GetConfig().GetSettings()
+    
     Tabs.Settings:AddInput("WebhookURL", {
         Title = "Webhook URL",
-        Default = "",
+        Default = settings.WebhookURL,
         Callback = function(Value) 
             GetConfig().UpdateSetting("WebhookURL", Value)
+        end
+    })
+
+    Tabs.Settings:AddToggle("ExcludeMutation", {
+        Title = "Exclude Mutations",
+        Default = settings.ExcludeMutation,
+        Callback = function(Value)
+            GetConfig().UpdateSetting("ExcludeMutation", Value)
         end
     })
 

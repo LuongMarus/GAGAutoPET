@@ -13,12 +13,11 @@ local function GetWebhook()
     return getgenv().__AutoFarmDeps.Webhook
 end
 
+-- [TÍNH NĂNG 1]: Nhận diện Mutation bao gồm Radiant
 function Core.IsMutation(petName)
-    local mutationPrefixes = {"Mega", "Rainbow", "Ascended", "Nightmare", "Golden", "Radiant", "Shiny"}
-    for _, prefix in ipairs(mutationPrefixes) do
-        if string.find(petName, prefix) then
-            return true, prefix
-        end
+    local list = {"Mega", "Rainbow", "Ascended", "Nightmare", "Golden", "Radiant", "Shiny"}
+    for _, prefix in ipairs(list) do
+        if string.find(petName, prefix) then return true, prefix end
     end
     return false, "Normal"
 end
@@ -53,10 +52,13 @@ function Core.ScanAndBuildTargetList(NotifyCallback)
             if tool:IsA("Tool") then
                 local baseName = string.match(tool.Name, "^(.+) %[Age") or tool.Name
                 if string.find(string.lower(baseName), searchName, 1, true) then
+                    local isMutated = Core.IsMutation(baseName)
                     local isDone, _ = Core.IsDone(baseName, 0, targetAge)
-                    if not isDone then
+                    
+                    if not (isMutated and settings.ExcludeMutation) and not isDone then
                         table.insert(settings.TargetUUIDs, tool.Name)
                     end
+                    
                     settings.PetStorage[tool.Name] = {
                         baseName = baseName,
                         uuid = tool.Name,
@@ -84,8 +86,10 @@ function Core.ScanAndUpdateStorage(NotifyCallback)
                 local baseName = string.match(tool.Name, "^(.+) %[Age") or tool.Name
                 if string.find(string.lower(baseName), searchName, 1, true) then
                     if not settings.PetStorage[tool.Name] then
+                        local isMutated = Core.IsMutation(baseName)
                         local isDone, _ = Core.IsDone(baseName, 0, targetAge)
-                        if not isDone then
+                        
+                        if not (isMutated and settings.ExcludeMutation) and not isDone then
                             local alreadyInList = false
                             for _, uuid in ipairs(settings.TargetUUIDs) do
                                 if uuid == tool.Name then alreadyInList = true; break end
@@ -94,6 +98,7 @@ function Core.ScanAndUpdateStorage(NotifyCallback)
                                 table.insert(settings.TargetUUIDs, tool.Name)
                             end
                         end
+                        
                         settings.PetStorage[tool.Name] = {
                             baseName = baseName,
                             uuid = tool.Name,
@@ -152,13 +157,11 @@ function Core.ManageGarden(NotifyCallback)
             end
             
             print("[DEBUG] Found pet in garden: '" .. petName .. "' age: " .. age)
-            
-            if string.find(string.lower(petName), searchName, 1, true) then
                 targetInGarden = targetInGarden + 1
                 
-                local isDone, reason = Core.IsDone(petName, age, targetAge)
-                
-                print("[DEBUG] Checking pet: '" .. petName .. "' isDone: " .. tostring(isDone) .. " reason: " .. (reason or "none"))
+                local isMutated, mutType = Core.IsMutation(petName)
+                local isDone = age >= targetAge or isMutated
+                local reason = isMutated and ("Mutation: " .. mutType) or ("Max Age: " .. age)
                 
                 if isDone then
                     print("[FARM] Unequip:", petName, "| Age:", age, "| Reason:", reason)
@@ -337,12 +340,9 @@ function Core.GetDashboardInfo()
             
             if petName ~= "" then
                 local isDone, reason = Core.IsDone(petName, age, targetAge)
-                local status = "[OTHER]"
+                local status = "[GIỮ]"
                 
-                if isDone then
-                    status = "[DONE]"
-                    doneCount = doneCount + 1
-                else
+                if not isDone then
                     local isFarming = false
                     for _, id in ipairs(targetUUIDs) do
                         if id == uuid then isFarming = true; break end
@@ -353,13 +353,17 @@ function Core.GetDashboardInfo()
                     end
                 end
                 
+                if isDone then
+                    doneCount = doneCount + 1
+                end
+                
                 infoText = infoText .. string.format("%s Lv.%-3d %s\n", status, age, petName)
             end
         end
     end
     
-    local header = string.format("=== Garden: %d/%d | Farming: %d | Done: %d ===\nTarget: %s | Age >= %d\n\n", 
-        petCount, settings.MaxSlots, farmingCount, doneCount, targetName or "None", targetAge)
+    local header = string.format("=== Garden: %d/%d | Farming: %d | Holding: %d ===\nTarget: %s | Age >= %d | Exclude Mutations: %s\n\n", 
+        petCount, settings.MaxSlots, farmingCount, doneCount, targetName or "None", targetAge, settings.ExcludeMutation and "Yes" or "No")
         
     return header .. (infoText ~= "" and infoText or "Garden empty")
 end
