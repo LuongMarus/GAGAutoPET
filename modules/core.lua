@@ -22,7 +22,7 @@ local function IsAlive()
 end
 
 function Core.IsMutation(name)
-    local list = {"Mega","Rainbow","Ascended","Nightmare","Golden","Radiant","Shiny"}
+    local list = {"Mega","Rainbow","Ascended","Nightmare"}
     for _, k in ipairs(list) do
         if string.find(name, k) then
             return true, k
@@ -47,12 +47,19 @@ function Core.ScanAndUpdateStorage()
     for _, frame in ipairs(list:GetChildren()) do
         if frame:IsA("Frame") and frame:FindFirstChild("Main") then
             local age = tonumber(string.match(frame.Main.PET_AGE_SHADOW.Text or "", "(%d+)"))
-            local mut, mutType = Core.IsMutation(frame.Name)
+            local displayName = ""
+            for _, lbl in pairs(frame:GetDescendants()) do
+                if lbl:IsA("TextLabel") and lbl.Visible and lbl.Text and not string.find(lbl.Text, "Age") and lbl.Text ~= "" and displayName == "" then
+                    displayName = lbl.Text
+                    break
+                end
+            end
+            local mut, mutType = Core.IsMutation(displayName)
 
             s.PetStorage[frame.Name] = {
                 UUID = frame.Name,
-                Name = frame.Name,
-                BaseName = string.lower(frame.Name),
+                Name = displayName,
+                BaseName = string.lower(displayName),
                 Location = "Garden",
                 Age = age,
                 Mutation = mutType,
@@ -66,12 +73,13 @@ function Core.ScanAndUpdateStorage()
         if tool:IsA("Tool") and tool:FindFirstChild("UUID") then
             local uuid = tool.UUID.Value
             if not s.PetStorage[uuid] then
-                local mut, mutType = Core.IsMutation(tool.Name)
+                local baseName = string.match(tool.Name, "^(.+) %[Age") or tool.Name
+                local mut, mutType = Core.IsMutation(baseName)
 
                 s.PetStorage[uuid] = {
                     UUID = uuid,
                     Name = tool.Name,
-                    BaseName = string.lower(tool.Name),
+                    BaseName = string.lower(baseName),
                     Location = "Backpack",
                     Age = nil,
                     Mutation = mutType,
@@ -257,6 +265,14 @@ function Core.ScanAndUpdateStorage(Notify)
                 end
             end
         end
+    end
+end
+
+-- Rebuild TargetUUIDs from PetStorage
+s.TargetUUIDs = {}
+for uuid, pet in pairs(s.PetStorage) do
+    if pet.Status == "Waiting" then
+        table.insert(s.TargetUUIDs, uuid)
     end
 end
 

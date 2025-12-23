@@ -441,7 +441,7 @@ local function ScanAndBuildTargetList()
                         
                         -- Đọc tên pet từ UI
                         for _, lbl in pairs(frame:GetDescendants()) do
-                            if lbl:IsA("TextLabel") and lbl.Visible then
+                            if lbl:IsA("TextLabel") and lbl.Visible and lbl.Text then
                                 if not string.find(lbl.Text, "Age") and lbl.Text ~= "" and petName == "" then
                                     petName = lbl.Text
                                     break
